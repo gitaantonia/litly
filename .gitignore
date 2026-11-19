@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# API Keys - jangan commit ke GitHub!
+lib/constants/api_keys.dart
