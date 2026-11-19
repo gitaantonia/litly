@@ -1,13 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../constants/colors.dart';
-import '../models/book.dart';
-import '../services/book_service.dart';
 
-// Halaman Discover Litly (PB-010: Book Search & PB-011: Category Exploration)
+import '../models/book.dart';
+import '../services/google_books_service.dart';
+import '../widgets/book_ui.dart';
+import 'book_detail.dart';
+
 class DiscoverScreen extends StatefulWidget {
-  DiscoverScreen({super.key});
+  const DiscoverScreen({super.key});
 
   @override
   State<DiscoverScreen> createState() => _DiscoverScreenState();

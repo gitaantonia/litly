@@ -7,6 +7,10 @@ import 'package:litly/screens/home.dart';
 import 'package:litly/screens/register.dart';
 import 'package:litly/services/session_service.dart';
 
+import '../constants/colors.dart';
+import '../services/book_service.dart';
+import 'home.dart';
+
 // Halaman Login aplikasi Litly
 class LoginScreen extends StatefulWidget {
   LoginScreen({super.key});
@@ -29,10 +33,38 @@ class _LoginScreenState extends State<LoginScreen> {
   String? emailError;
   String? passwordError;
 
+<<<<<<< HEAD
   // Status toggle
   bool obscurePassword = true;
   bool rememberMe = true;
   bool isLoading = false;
+=======
+  void _goHome(String name) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
+    );
+  }
+
+  Future<void> _login() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Masukkan nama kamu dulu!',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: kPurple,
+        ),
+      );
+      return;
+    }
+    await _service.saveUsername(name);
+    if (!mounted) return;
+    _goHome(name);
+  }
+>>>>>>> 77451b8a04c578a1eaa747b4ca8c813759b3aaf4
 
   @override
   void dispose() {
@@ -175,6 +207,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: kBackground,
+        body: SafeArea(
+          child: Center(child: CircularProgressIndicator(color: kPurple)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

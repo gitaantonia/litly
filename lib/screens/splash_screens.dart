@@ -94,139 +94,125 @@ class _SplashScreenState extends State<SplashScreen>
 
           final uiT = _seg(t, 0.88, 1.0, Curves.easeOut);
 
-          return Stack(
-            children: [
-              // Bintang kuning + mata (digambar pakai CustomPainter)
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _StarEyesPainter(
-                    starRadius: starRadius,
-                    starOpacity: starOpacity,
-                    eyeScale: eyeScale,
-                    eyeOpacity: eyeOpacity,
-                    rightEyeOpen: blinkOpen,
+          return SafeArea(
+            child: Stack(
+              children: [
+                // Bintang kuning + mata (digambar pakai CustomPainter)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _StarEyesPainter(
+                      starRadius: starRadius,
+                      starOpacity: starOpacity,
+                      eyeScale: eyeScale,
+                      eyeOpacity: eyeOpacity,
+                      rightEyeOpen: blinkOpen,
+                    ),
                   ),
                 ),
-              ),
 
-              // Maskot PNG
-              Positioned.fill(
-                child: Center(
-                  child: Opacity(
-                    opacity: mascotOpacity,
-                    child: Transform.translate(
-                      offset: Offset(0, mascotDy),
-                      child: Image.asset(
-                        'assets/images/liti_mascot.png',
-                        width: mascotWidth,
+                // Maskot PNG
+                Positioned.fill(
+                  child: Center(
+                    child: Opacity(
+                      opacity: mascotOpacity,
+                      child: Transform.translate(
+                        offset: Offset(0, mascotDy),
+                        child: Image.asset(
+                          'assets/images/liti_mascot.png',
+                          width: mascotWidth,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // Judul
-              Positioned(
-                top: size.height * 0.10,
-                left: 0,
-                right: 0,
-                child: Opacity(
-                  opacity: uiT,
-                  child: Transform.translate(
-                    offset: Offset(0, 12 * (1 - uiT)),
+                // Judul
+                Positioned(
+                  top: size.height * 0.10,
+                  left: 0,
+                  right: 0,
+                  child: Opacity(
+                    opacity: uiT,
+                    child: Transform.translate(
+                      offset: Offset(0, 12 * (1 - uiT)),
+                      child: Text(
+                        'Selamat datang di\nLITLY',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          height: 1.4,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Subtitle
+                Positioned(
+                  top: size.height * 0.58,
+                  left: 0,
+                  right: 0,
+                  child: Opacity(
+                    opacity: uiT,
                     child: Text(
-                      'Selamat datang di\nLITLY',
+                      'Aku Liti sahabat yang akan\nmenemani perjalanan kamu',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        height: 1.4,
+                        fontSize: 14,
+                        height: 2,
                         color: Colors.black,
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // Subtitle
-              Positioned(
-                top: size.height * 0.58,
-                left: 0,
-                right: 0,
-                child: Opacity(
-                  opacity: uiT,
-                  child: Text(
-                    'Aku Liti sahabat yang akan\nmenemani perjalanan kamu',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      height: 2,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Tombol
-              Positioned(
-                bottom: 100,
-                left: 0,
-                right: 0,
-                child: Opacity(
-                  opacity: uiT,
-                  child: Center(
-                    child: SizedBox(
-                      width: 162,
-                      height: 40,
-                      child: ElevatedButton(
-                        onPressed: uiT >= 1
-                            ? () async {
-                                bool isActive = await SessionService.isSessionActive();
-                                if (!context.mounted) return;
-                                if (isActive) {
-                                  Map<String, dynamic> session = await SessionService.getSessionData();
-                                  if (!context.mounted) return;
+                // Tombol
+                Positioned(
+                  bottom: 100,
+                  left: 0,
+                  right: 0,
+                  child: Opacity(
+                    opacity: uiT,
+                    child: Center(
+                      child: SizedBox(
+                        width: 162,
+                        height: 40,
+                        child: ElevatedButton(
+                          onPressed: uiT >= 1
+                              ? () {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => HomeScreenPlaceholder(
-                                        userName: session['user_name'] ?? '',
-                                        userEmail: session['user_email'] ?? '',
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => LoginScreen(),
+                                      builder: (_) => const LoginScreen(),
                                     ),
                                   );
                                 }
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _buttonColor,
-                          disabledBackgroundColor: _buttonColor,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _buttonColor,
+                            disabledBackgroundColor: _buttonColor,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          'Letss goww',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                          child: Text(
+                            'Letss goww',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -301,7 +287,8 @@ class _StarEyesPainter extends CustomPainter {
     canvas.translate(c.dx, c.dy);
     canvas.scale(eyeScale);
 
-    final purple = Paint()..color = _purple.withValues(alpha: eyeOpacity.clamp(0, 1));
+    final purple = Paint()
+      ..color = _purple.withValues(alpha: eyeOpacity.clamp(0, 1));
     final white = Paint()
       ..color = Colors.white.withValues(alpha: eyeOpacity.clamp(0, 1));
 

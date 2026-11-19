@@ -4,7 +4,14 @@ class Book {
   final String title;
   final String author;
   final String? coverUrl;
+  final String? publisher;
+  final String? publishedDate;
+  final String? isbn;
+  final String? description;
   final int totalPages;
+  final double? rating;
+  final int? ratingsCount;
+  String status;
   int currentPage;
   final DateTime addedAt;
 
@@ -17,7 +24,14 @@ class Book {
     required this.id,
     required this.author,
     this.coverUrl,
+    this.publisher,
+    this.publishedDate,
+    this.isbn,
+    this.description,
     required this.totalPages,
+    this.rating,
+    this.ratingsCount,
+    this.status = 'Want to Read',
     this.currentPage = 0,
     required this.addedAt,
     this.publishedYear,

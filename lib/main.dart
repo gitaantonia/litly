@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:litly/screens/splash_screens.dart';
+import 'package:litly/services/book_service.dart';
+import 'package:litly/state/app_state.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,18 +14,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Litly',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Color(0xFF8550A0),
-          primary: Color(0xFF8550A0),
+    return ChangeNotifierProvider(
+      create: (_) => AppState(BookService())..loadBooks(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2E365A)),
         ),
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: true,
+        home: const SplashScreen(),
       ),
-      home: SplashScreen(),
     );
   }
 }
