@@ -15,7 +15,7 @@ class BookService {
   static const _usernameKey = 'username';
   static const _legacyBooksKey = 'reading_books';
   static const _databaseName = 'litly.db';
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
   final GoogleBooksService _googleBooksService;
   Database? _database;
 
@@ -37,6 +37,7 @@ class BookService {
             publisher TEXT,
             published_date TEXT,
             published_year TEXT,
+            language TEXT,
             category TEXT,
             isbn TEXT,
             description TEXT,
@@ -70,6 +71,9 @@ class BookService {
               'ALTER TABLE books ADD COLUMN published_year TEXT',
             );
             await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
+          }
+          if (oldVersion < 3) {
+            await db.execute('ALTER TABLE books ADD COLUMN language TEXT');
           }
         },
       ),
@@ -127,6 +131,7 @@ class BookService {
   Future<List<Book>> searchGoogleBooks(
     String query, {
     int maxResults = 20,
+    String languageCode = 'id',
   }) async {
     var formattedQuery = query.trim();
     if (formattedQuery.isEmpty) return [];
@@ -135,25 +140,26 @@ class BookService {
         (cleanIsbn.length == 10 || cleanIsbn.length == 13)) {
       formattedQuery = 'isbn:$cleanIsbn';
     }
-    return _googleBooksService.searchBooks(formattedQuery, limit: maxResults);
+    return _googleBooksService.searchBooks(
+      formattedQuery,
+      limit: maxResults,
+      languageCode: languageCode,
+    );
   }
 
   Future<List<Book>> fetchBooksByCategory(
     String category, {
-    int maxResults = 20,
+    int maxResults = 40,
+    String? languageCode = 'id',
   }) {
-    final subject = switch (category.toLowerCase()) {
-      'fiction' => 'fiction',
-      'self-improvement' => 'self-help OR personal development',
-      'technology' => 'computers OR technology',
-      'business' => 'business OR economics',
-      'history' => 'history',
-      'psychology' => 'psychology',
-      _ => 'reading OR literature OR popular',
-    };
+    final normalizedCategory = category.trim();
+    final query = normalizedCategory.toLowerCase() == 'all'
+        ? 'novel'
+        : 'subject:"$normalizedCategory"';
     return _googleBooksService.searchBooks(
-      'subject:($subject)',
+      query,
       limit: maxResults,
+      languageCode: languageCode,
     );
   }
 }

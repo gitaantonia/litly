@@ -42,4 +42,10 @@ class AppState extends ChangeNotifier {
     _books = _books.map((item) => item.id == book.id ? book : item).toList();
     notifyListeners();
   }
+
+  Future<void> removeBook(String id) async {
+    await _bookService.deleteBook(id);
+    _books = _books.where((book) => book.id != id).toList();
+    notifyListeners();
+  }
 }

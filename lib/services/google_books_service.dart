@@ -22,17 +22,18 @@ class GoogleBooksService {
   static const _endpoint = 'https://www.googleapis.com/books/v1/volumes';
   static const _timeout = Duration(seconds: 10);
 
-  Future<List<Book>> searchBooks(String query, {int limit = 20}) async {
+  Future<List<Book>> searchBooks(
+    String query, {
+    int limit = 20,
+    String? languageCode,
+  }) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) return [];
-    return _request({'q': normalizedQuery, 'maxResults': '$limit'});
-  }
-
-  Future<List<Book>> recommendations(String subject) {
     return _request({
-      'q': 'subject:$subject',
-      'orderBy': 'relevance',
-      'maxResults': '10',
+      'q': normalizedQuery,
+      'maxResults': '$limit',
+      if (languageCode != null && languageCode.trim().isNotEmpty)
+        'langRestrict': languageCode.trim(),
     });
   }
 

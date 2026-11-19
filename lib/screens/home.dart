@@ -73,14 +73,14 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Discover',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bookmark_border_rounded),
-            selectedIcon: Icon(Icons.bookmark_rounded),
-            label: 'My Library',
+            icon: Icon(Icons.auto_stories_outlined),
+            selectedIcon: Icon(Icons.auto_stories_rounded),
+            label: 'Shelf',
           ),
           NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights_rounded),
-            label: 'Statistics',
+            label: 'Insights',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

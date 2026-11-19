@@ -6,6 +6,7 @@ class Book {
   final String? publisher;
   final String? publishedDate;
   final String? publishedYear;
+  final String? language;
   final String? category;
   final String? isbn;
   final String? description;
@@ -24,6 +25,7 @@ class Book {
     this.publisher,
     this.publishedDate,
     this.publishedYear,
+    this.language,
     this.category,
     this.isbn,
     this.description,
@@ -50,6 +52,7 @@ class Book {
     'publisher': publisher,
     'publishedDate': publishedDate,
     'publishedYear': publishedYear,
+    'language': language,
     'category': category,
     'isbn': isbn,
     'description': description,
@@ -69,6 +72,7 @@ class Book {
     'publisher': publisher,
     'published_date': publishedDate,
     'published_year': publishedYear,
+    'language': language,
     'category': category,
     'isbn': isbn,
     'description': description,
@@ -88,6 +92,7 @@ class Book {
     publisher: row['publisher'] as String?,
     publishedDate: row['published_date'] as String?,
     publishedYear: row['published_year'] as String?,
+    language: row['language'] as String?,
     category: row['category'] as String?,
     isbn: row['isbn'] as String?,
     description: row['description'] as String?,
@@ -107,6 +112,7 @@ class Book {
     publisher: map['publisher'] as String?,
     publishedDate: map['publishedDate'] as String?,
     publishedYear: map['publishedYear'] as String?,
+    language: map['language'] as String?,
     category: map['category'] as String?,
     isbn: map['isbn'] as String?,
     description: map['description'] as String?,
@@ -132,27 +138,28 @@ class Book {
           identifier['type'] == 'ISBN_13' || identifier['type'] == 'ISBN_10',
       orElse: () => const {},
     );
-    final cover =
+    final imageUrl =
         imageLinks['extraLarge'] ??
         imageLinks['large'] ??
         imageLinks['thumbnail'] ??
         imageLinks['smallThumbnail'];
+    final coverUrl =
+        _normalizeCover(imageUrl is String ? imageUrl : null) ??
+        _fallbackCoverUrl(item['id'] as String?);
     final authorNames = authors.whereType<String>().toList();
+    final id = item['id'] as String?;
 
     return Book(
-      id:
-          item['id'] as String? ??
-          DateTime.now().microsecondsSinceEpoch.toString(),
+      id: id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       title: volumeInfo['title'] as String? ?? 'Tanpa Judul',
       author: authorNames.isEmpty
           ? 'Penulis Tidak Diketahui'
           : authorNames.join(', '),
-      coverUrl: cover is String
-          ? cover.replaceFirst('http://', 'https://')
-          : null,
+      coverUrl: coverUrl,
       publisher: volumeInfo['publisher'] as String?,
       publishedDate: publishedDate,
       publishedYear: publishedDate?.split('-').first,
+      language: volumeInfo['language'] as String?,
       category: categories.isEmpty ? null : categories.first.toString(),
       isbn: isbn['identifier'] as String?,
       description: volumeInfo['description'] as String?,
@@ -161,5 +168,24 @@ class Book {
       ratingsCount: volumeInfo['ratingsCount'] as int?,
       addedAt: DateTime.now(),
     );
+  }
+
+  static String? _fallbackCoverUrl(String? id) {
+    if (id == null || id.trim().isEmpty) return null;
+    return Uri.https('books.google.com', '/books/content', {
+      'id': id,
+      'printsec': 'frontcover',
+      'img': '1',
+      'zoom': '2',
+      'source': 'gbs_api',
+    }).toString();
+  }
+
+  static String? _normalizeCover(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    return url
+        .replaceFirst('http://', 'https://')
+        .replaceAll('&edge=curl', '')
+        .replaceFirst('zoom=1', 'zoom=2');
   }
 }

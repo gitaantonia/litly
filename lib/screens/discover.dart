@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/book.dart';
 import '../constants/colors.dart';
 import '../services/book_service.dart';
+import 'book_detail.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -24,22 +25,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   // Timer untuk mekanisme debounce 500ms (PB-010)
   Timer? _debounce;
 
-  // Daftar kategori buku sesuai pembagian tugas PB-011
-  final List<String> _categories = [
-    'All',
-    'Fiction',
-    'Self-Improvement',
-    'Technology',
-    'Business',
-    'History',
-    'Psychology',
-  ];
+  List<String> _apiCategories = [];
+  List<String> get _categories => ['All', ..._apiCategories];
 
   // Kategori aktif saat ini
   String _selectedCategory = 'All';
 
   // Data hasil buku dari Google Books API
   List<Book> _books = [];
+  List<Book> _allBooks = [];
 
   // Status tampilan pencarian (Search States)
   bool _isLoading = false;
@@ -49,7 +43,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    // Memuat data buku kategori awal saat halaman pertama kali dibuka
     _fetchBooksByCategory(_selectedCategory);
   }
 
@@ -64,6 +57,24 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   // Mengambil buku berdasarkan kategori terpilih (PB-011)
   void _fetchBooksByCategory(String category) async {
+    if (category != 'All') {
+      setState(() {
+        _isLoading = true;
+        _isError = false;
+        _errorMessage = '';
+      });
+
+      final categoryBooks = _allBooks
+          .where((book) => _matchesCategory(book, category))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _books = categoryBooks;
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _isError = false;
@@ -72,9 +83,36 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
     try {
       List<Book> result = await _bookService.fetchBooksByCategory(category);
+      var completeBooks = _completeBooks(result);
+      if (category == 'All' && completeBooks.isEmpty) {
+        result = await _bookService.searchGoogleBooks(
+          'buku',
+          maxResults: 40,
+          languageCode: 'id',
+        );
+        completeBooks = _completeBooks(result);
+      }
       if (!mounted) return;
       setState(() {
-        _books = result;
+        _allBooks = completeBooks;
+        _books = completeBooks;
+        final categoryCounts = <String, int>{};
+        for (final book in completeBooks) {
+          final bookCategory = book.category?.split('/').first.trim();
+          if (bookCategory != null && bookCategory.isNotEmpty) {
+            categoryCounts.update(
+              bookCategory,
+              (count) => count + 1,
+              ifAbsent: () => 1,
+            );
+          }
+        }
+        final sortedCategories = categoryCounts.entries.toList()
+          ..sort((first, second) => second.value.compareTo(first.value));
+        _apiCategories = sortedCategories
+            .take(4)
+            .map((entry) => entry.key)
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -106,7 +144,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       List<Book> result = await _bookService.searchGoogleBooks(query.trim());
       if (!mounted) return;
       setState(() {
-        _books = result;
+        _books = _completeBooks(result);
         _isLoading = false;
       });
     } catch (e) {
@@ -118,6 +156,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  bool _matchesCategory(Book book, String category) {
+    final actualCategory = book.category?.trim().toLowerCase();
+    final selectedCategory = category.trim().toLowerCase();
+    return actualCategory == selectedCategory ||
+        (actualCategory?.startsWith('$selectedCategory /') ?? false);
+  }
+
+  List<Book> _completeBooks(Iterable<Book> books) {
+    return books.where((book) {
+      return book.title.trim().isNotEmpty &&
+          book.author.trim().isNotEmpty &&
+          book.author != 'Penulis Tidak Diketahui' &&
+          (book.coverUrl?.trim().isNotEmpty ?? false) &&
+          book.language?.toLowerCase() == 'id';
+    }).toList();
   }
 
   // Handler saat teks input pencarian berubah dengan Debounce 500ms
@@ -151,44 +206,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   // Mendapatkan warna latar belakang chip ketika tidak aktif
   Color _getChipBgColor(String category) {
-    switch (category) {
-      case 'Fiction':
-        return Color(0xFFFCEAEF); // Pink lembut
-      case 'Self-Improvement':
-        return Color(0xFFECE5F8); // Lavender lembut
-      case 'Technology':
-        return Color(0xFFE5F2F8); // Biru muda lembut
-      case 'Business':
-        return Color(0xFFFCF0E8); // Peach lembut
-      case 'History':
-        return Color(0xFFFAF2DE); // Krem lembut
-      case 'Psychology':
-        return Color(0xFFFAF5E4); // Kuning muda lembut
-      case 'All':
-      default:
-        return Color(0xFFF1EEF6);
-    }
+    final normalizedCategory = category.toLowerCase();
+    if (normalizedCategory == 'all') return Color(0xFFF1EEF6);
+    if (normalizedCategory.contains('fiction')) return Color(0xFFFCEAEF);
+    if (normalizedCategory.contains('philosophy')) return Color(0xFFECE5F8);
+    if (normalizedCategory.contains('audio')) return Color(0xFFFFE9D7);
+    return Color(0xFFE9EAF1);
   }
 
   // Mendapatkan warna teks chip ketika tidak aktif
   Color _getChipTextColor(String category) {
-    switch (category) {
-      case 'Fiction':
-        return Color(0xFFD45278);
-      case 'Self-Improvement':
-        return Color(0xFF7856A9);
-      case 'Technology':
-        return Color(0xFF3E82A8);
-      case 'Business':
-        return Color(0xFFC87442);
-      case 'History':
-        return Color(0xFFA38332);
-      case 'Psychology':
-        return Color(0xFF9A7E24);
-      case 'All':
-      default:
-        return kNavy;
-    }
+    final normalizedCategory = category.toLowerCase();
+    if (normalizedCategory.contains('fiction')) return Color(0xFFD45278);
+    if (normalizedCategory.contains('philosophy')) return Color(0xFF7856A9);
+    if (normalizedCategory.contains('audio')) return Color(0xFFC87442);
+    return kNavy;
   }
 
   // ─── BUILD UI ──────────────────────────────────────────────────────────────
@@ -196,7 +228,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFDFBFE),
+      backgroundColor: Color(0xFFF4F4FA),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,9 +252,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: kLavender,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Color(0xFFE8E0F0)),
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -253,14 +284,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             tooltip: 'Hapus Pencarian',
                             onPressed: _clearSearch,
                           )
-                        : Padding(
-                            padding: EdgeInsets.only(right: 14),
-                            child: Icon(
-                              Icons.tune_rounded,
-                              color: kNavy.withValues(alpha: 0.6),
-                              size: 20,
-                            ),
-                          ),
+                        : null,
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 16,
@@ -352,30 +376,54 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   // ─── TAMPILAN SEARCH STATES ────────────────────────────────────────────────
 
   Widget _buildBody() {
-    // A. Loading State
-    if (_isLoading) {
-      return Center(
+    return ListView(
+      padding: EdgeInsets.only(bottom: 24),
+      physics: BouncingScrollPhysics(),
+      children: [
+        if (_isLoading)
+          _buildLoadingState()
+        else if (_isError)
+          _buildErrorState()
+        else if (_books.isEmpty)
+          _buildEmptyState()
+        else
+          ..._books.map(
+            (book) => Padding(
+              padding: EdgeInsets.only(bottom: 14),
+              child: _buildBookCard(book),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return SizedBox(
+      height: 220,
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               child: CircularProgressIndicator(color: kNavy, strokeWidth: 3),
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 14),
             Text(
               'Memuat data buku...',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // B. Error State
-    if (_isError) {
-      return Center(
+  Widget _buildErrorState() {
+    return SizedBox(
+      height: 320,
+      child: Center(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 32),
           child: Column(
@@ -447,12 +495,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // C. Empty State
-    if (_books.isEmpty) {
-      return Center(
+  Widget _buildEmptyState() {
+    return SizedBox(
+      height: 320,
+      child: Center(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 32),
           child: Column(
@@ -483,8 +533,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               SizedBox(height: 6),
               Text(
                 _searchController.text.isNotEmpty
-                    ? 'Tidak ada buku yang cocok dengan "${_searchController.text}". Coba cari dengan judul, penulis, atau nomor ISBN lain.'
-                    : 'Tidak ada koleksi buku yang tersedia untuk kategori ini.',
+                    ? 'Tidak ditemukan buku dengan informasi lengkap untuk "${_searchController.text}". Coba kata kunci lain.'
+                    : 'Tidak ada buku dengan informasi lengkap untuk kategori ini.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 13,
@@ -495,213 +545,249 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBookCover(
+    Book book, {
+    required double width,
+    required double height,
+  }) {
+    final coverUrl = book.coverUrl;
+    if (coverUrl == null || coverUrl.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: kLavender,
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.menu_book_rounded,
+          color: kNavy.withValues(alpha: 0.4),
+          size: 34,
+        ),
       );
     }
 
-    // D. Success State (Daftar Kartu Buku Dinamis dari Google Books API)
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(20, 6, 20, 24),
-      physics: BouncingScrollPhysics(),
-      itemCount: _books.length,
-      separatorBuilder: (context, index) => SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        Book book = _books[index];
-        return _buildBookCard(book);
+    return Image.network(
+      coverUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Gagal memuat cover $coverUrl: $error');
+        return Container(
+          color: kLavender,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.menu_book_rounded,
+            color: kNavy.withValues(alpha: 0.4),
+            size: 34,
+          ),
+        );
       },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: kLavender,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: kNavy.withValues(alpha: 0.5),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openBookDetails(Book book) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => BookDetailScreen(book: book)),
     );
   }
 
   // ─── KARTU BUKU (Sesuai Referensi Desain) ───────────────────────────────────
 
   Widget _buildBookCard(Book book) {
-    String categoryName = book.category ?? _selectedCategory;
-    if (categoryName.toLowerCase() == 'all') {
-      categoryName = 'READING';
-    }
+    final categoryName =
+        book.category?.split('/').first.trim() ??
+        (_selectedCategory == 'All' ? 'Bestseller' : _selectedCategory);
 
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Color(0xFFEFEBF5)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF2E365A).withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Cover Buku
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 82,
-              height: 118,
-              color: kLavender,
-              child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                  ? Image.network(
-                      book.coverUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(
-                            Icons.broken_image_rounded,
-                            color: kNavy.withValues(alpha: 0.35),
-                            size: 28,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: kNavy.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        );
-                      },
-                    )
-                  : Center(
-                      child: Icon(
-                        Icons.menu_book_rounded,
-                        color: kNavy.withValues(alpha: 0.35),
-                        size: 32,
-                      ),
-                    ),
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: () => _openBookDetails(book),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: kNavy.withValues(alpha: 0.05),
+                  blurRadius: 14,
+                  offset: Offset(0, 5),
+                ),
+              ],
             ),
-          ),
-
-          SizedBox(width: 14),
-
-          // 2. Informasi Buku
-          Expanded(
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Baris Tag Kategori & Rating
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Tag Kategori
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _getChipBgColor(categoryName),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '# ${categoryName.toUpperCase()}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: _getChipTextColor(categoryName),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: _buildBookCover(book, width: 96, height: 142),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 142,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getChipBgColor(categoryName),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '# ${categoryName.toUpperCase()}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: _getChipTextColor(categoryName),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (book.rating != null) ...[
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.star_rounded,
+                                color: Color(0xFFFFA900),
+                                size: 15,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                book.rating!.toStringAsFixed(1),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: kNavy,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                    ),
-
-                    // Rating bintang (jika tersedia)
-                    if (book.rating != null)
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            color: Color(0xFFFFB800),
-                            size: 16,
+                        SizedBox(height: 5),
+                        Text(
+                          book.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: kNavy,
+                            height: 1.25,
                           ),
-                          SizedBox(width: 3),
-                          Text(
-                            book.rating!.toStringAsFixed(1),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          '${book.author}${book.publishedYear == null ? '' : ' • ${book.publishedYear}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            color: Color(0xFF85879A),
+                          ),
+                        ),
+                        if (book.description?.isNotEmpty ?? false) ...[
+                          SizedBox(height: 5),
+                          Expanded(
+                            child: Text(
+                              book.description!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                height: 1.35,
+                                color: Color(0xFF85879A),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                  ],
-                ),
-
-                SizedBox(height: 6),
-
-                // Judul Buku
-                Text(
-                  book.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: kNavy,
-                    height: 1.25,
-                  ),
-                ),
-
-                SizedBox(height: 3),
-
-                // Penulis & Tahun Terbit
-                Text(
-                  '${book.author}${book.publishedYear != null ? " • ${book.publishedYear}" : ""}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black54,
-                  ),
-                ),
-
-                SizedBox(height: 5),
-
-                // Deskripsi singkat jika ada
-                if (book.description != null && book.description!.isNotEmpty)
-                  Text(
-                    book.description!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.black45,
-                      height: 1.3,
+                        ] else
+                          Spacer(),
+                        Divider(height: 12, color: Color(0xFFEDEDF2)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                book.totalPages > 0
+                                    ? '${book.totalPages} pages'
+                                    : 'Pages n/a',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 9,
+                                  color: Color(0xFF85879A),
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => _openBookDetails(book),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 5, top: 3),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.bookmark_add_outlined,
+                                      size: 15,
+                                      color: kNavy,
+                                    ),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Shelf',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: kNavy,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-
-                SizedBox(height: 8),
-
-                // Informasi Jumlah Halaman
-                Row(
-                  children: [
-                    Icon(
-                      Icons.auto_stories_rounded,
-                      size: 14,
-                      color: kNavy.withValues(alpha: 0.6),
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      book.totalPages > 0
-                          ? '${book.totalPages} pages'
-                          : 'Pages not specified',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
