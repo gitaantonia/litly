@@ -17,7 +17,7 @@ class BookService {
   static final String _usernameKey = 'username';
   static final String _legacyBooksKey = 'reading_books';
   static final String _databaseName = 'litly.db';
-  static final int _databaseVersion = 3;
+  static final int _databaseVersion = 4;
   static final String _dailyTargetMinutesKey = 'daily_target_minutes';
 
   final GoogleBooksService _googleBooksService;
@@ -61,6 +61,15 @@ class BookService {
         },
         onOpen: (db) async {
           await _createTables(db);
+          try {
+            await db.execute('ALTER TABLE books ADD COLUMN published_year TEXT');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE books ADD COLUMN language TEXT');
+          } catch (_) {}
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           await _createTables(db);
@@ -70,7 +79,7 @@ class BookService {
               await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
             } catch (_) {}
           }
-          if (oldVersion < 3) {
+          if (oldVersion < 4) {
             try {
               await db.execute('ALTER TABLE books ADD COLUMN language TEXT');
             } catch (_) {}
