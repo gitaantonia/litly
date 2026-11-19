@@ -4,14 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/colors.dart';
 import '../models/book.dart';
 import '../services/book_service.dart';
-
-// import 'search_book.dart';
-// import 'book_detail.dart';
-// import '../widgets/book_card.dart';
+import 'discover.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
-  const HomeScreen({super.key, required this.username});
+  HomeScreen({super.key, required this.username});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -37,21 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Future<void> _openSearch() async {
-  //   final added = await Navigator.push<bool>(
-  //     context,
-  //     MaterialPageRoute(builder: (_) => const SearchBookScreen()),
-  //   );
-  //   if (added == true) _loadBooks();
-  // }
-
-  // Future<void> _openDetail(Book book) async {
-  //   final changed = await Navigator.push<bool>(
-  //     context,
-  //     MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
-  //   );
-  //   if (changed == true) _loadBooks();
-  // }
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DiscoverScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,25 +51,35 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+              padding: EdgeInsets.fromLTRB(24, 28, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Image.asset('assets/images/liti_mascot.png', width: 40),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Litly',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: kPurple,
-                        ),
+                      Row(
+                        children: [
+                          Image.asset('assets/images/liti_mascot.png', width: 40),
+                          SizedBox(width: 10),
+                          Text(
+                            'Litly',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: kPurple,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.explore_rounded, color: kNavy),
+                        tooltip: 'Discover',
+                        onPressed: _openSearch,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                   Text(
                     'Hai, ${widget.username}! 👋',
                     style: GoogleFonts.poppins(
@@ -101,20 +99,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
 
             // Stats ringkas
             if (_books.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: 24),
                 child: _StatsRow(books: _books),
               ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             // Label daftar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 'Sedang Dibaca',
                 style: GoogleFonts.poppins(
@@ -125,44 +123,72 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
-            // // Daftar buku / empty state
-            // Expanded(
-            //   child: _loading
-            //       ? const Center(
-            //           child: CircularProgressIndicator(color: kPurple))
-            //       : _books.isEmpty
-            //           ? _EmptyState(onAdd: _openSearch)
-            //           : ListView.separated(
-            //               padding: const EdgeInsets.symmetric(horizontal: 24),
-            //               itemCount: _books.length,
-            //               separatorBuilder: (_, __) =>
-            //                   const SizedBox(height: 12),
-            //               itemBuilder: (_, i) => BookCard(
-            //                 book: _books[i],
-            //                 onTap: () => _openDetail(_books[i]),
-            //               ),
-            //             ),
-            // ),
+            Expanded(
+              child: _loading
+                  ? Center(
+                      child: CircularProgressIndicator(color: kPurple),
+                    )
+                  : _books.isEmpty
+                      ? _EmptyState(onAdd: _openSearch)
+                      : ListView.separated(
+                          padding: EdgeInsets.symmetric(horizontal: 24),
+                          itemCount: _books.length,
+                          separatorBuilder: (context, index) => SizedBox(height: 12),
+                          itemBuilder: (_, i) => Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Color(0xFFEFEBF5)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.book_rounded, color: kPurple),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _books[i].title,
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Text(
+                                        _books[i].author,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+            ),
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openSearch,
+        backgroundColor: kNavy,
+        icon: Icon(Icons.explore_rounded, color: Colors.white),
+        label: Text(
+          'Discover Buku',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
-    // Tombol tambah buku
-    //   floatingActionButton: FloatingActionButton.extended(
-    //     // onPressed: _openSearch,
-    //     backgroundColor: kPurple,
-    //     icon: const Icon(Icons.search, color: Colors.white),
-    //     label: Text(
-    //       'Cari Buku',
-    //       style: GoogleFonts.poppins(
-    //         fontWeight: FontWeight.w600,
-    //         color: Colors.white,
-    //       ),
-    //     ),
-    //   ),
-    // );
   }
 }
 
@@ -170,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _StatsRow extends StatelessWidget {
   final List<Book> books;
-  const _StatsRow({required this.books});
+  _StatsRow({required this.books});
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +205,7 @@ class _StatsRow extends StatelessWidget {
     return Row(
       children: [
         _StatChip(label: 'Dibaca', value: '$reading', icon: Icons.menu_book),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         _StatChip(
           label: 'Selesai',
           value: '$finished',
@@ -193,7 +219,7 @@ class _StatsRow extends StatelessWidget {
 class _StatChip extends StatelessWidget {
   final String label, value;
   final IconData icon;
-  const _StatChip({
+  _StatChip({
     required this.label,
     required this.value,
     required this.icon,
@@ -203,7 +229,7 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: kLightPurple,
           borderRadius: BorderRadius.circular(14),
@@ -211,7 +237,7 @@ class _StatChip extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 20, color: kPurple),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -243,7 +269,7 @@ class _StatChip extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onAdd;
-  const _EmptyState({required this.onAdd});
+  _EmptyState({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -251,12 +277,12 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.auto_stories_outlined,
             size: 72,
             color: kButtonColor,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             'Belum ada buku nih...',
             style: GoogleFonts.poppins(
@@ -265,28 +291,28 @@ class _EmptyState extends StatelessWidget {
               color: Colors.black54,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
-            'Cari dan tambahkan buku pertamamu!',
+            'Cari dan temukan buku di Discover!',
             style: GoogleFonts.poppins(fontSize: 13, color: Colors.black38),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: onAdd,
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: Icon(Icons.explore_rounded, color: Colors.white),
             label: Text(
-              'Cari Buku',
+              'Buka Discover',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: kPurple,
+              backgroundColor: kNavy,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(24),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],
