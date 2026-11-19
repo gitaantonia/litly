@@ -58,8 +58,6 @@ class BookService {
     return _database!;
   }
 
-  // ─── USERNAME ───────────────────────────────────────────
-
   Future<void> saveUsername(String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_usernameKey, name);
@@ -74,8 +72,6 @@ class BookService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_usernameKey);
   }
-
-  // ─── BOOKS ──────────────────────────────────────────────
 
   Future<List<Book>> getBooks() async {
     final db = await _db;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/colors.dart';
+import '../state/app_state.dart';
 import 'discover.dart';
 import 'library.dart';
 import 'profile.dart';
@@ -121,7 +123,9 @@ class HomeTab extends StatelessWidget {
               'Lanjutkan perjalanan bacamu hari ini.',
               style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+            const _ReadingStats(),
+            const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
@@ -176,7 +180,7 @@ class HomeTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
+            const Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
@@ -188,6 +192,81 @@ class HomeTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _ReadingStats extends StatelessWidget {
+  const _ReadingStats();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final reading = state.books
+            .where((book) => book.status == 'Currently Reading')
+            .length;
+        final completed = state.books
+            .where((book) => book.status == 'Completed')
+            .length;
+        return Row(
+          children: [
+            _StatChip(label: 'Sedang Dibaca', value: reading),
+            const SizedBox(width: 12),
+            _StatChip(label: 'Selesai', value: completed),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: kLightPurple,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.menu_book_rounded, size: 20, color: kPurple),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$value',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: kPurple,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
