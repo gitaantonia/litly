@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/book.dart';
-import '../services/google_books_service.dart';
-import '../widgets/book_ui.dart';
-import 'book_detail.dart';
+import '../constants/colors.dart';
+import '../services/book_service.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -80,7 +81,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       if (!mounted) return;
       setState(() {
         _isError = true;
-        _errorMessage = 'Gagal memuat buku untuk kategori $category. Periksa koneksi internet Anda.';
+        _errorMessage =
+            'Gagal memuat buku untuk kategori $category. Periksa koneksi internet Anda.';
         _isLoading = false;
       });
     }
@@ -111,7 +113,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       if (!mounted) return;
       setState(() {
         _isError = true;
-        _errorMessage = 'Gagal melakukan pencarian untuk "$query". Periksa koneksi internet Anda.';
+        _errorMessage =
+            'Gagal melakukan pencarian untuk "$query". Periksa koneksi internet Anda.';
         _isLoading = false;
       });
     }
@@ -311,7 +314,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                 fontWeight: FontWeight.w600,
                                 color: isSelected
                                     ? Colors.white.withValues(alpha: 0.7)
-                                    : _getChipTextColor(category).withValues(alpha: 0.6),
+                                    : _getChipTextColor(category)
+                                          .withValues(alpha: 0.6),
                               ),
                             ),
                             Text(
@@ -338,9 +342,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             SizedBox(height: 16),
 
             // 4. Area Konten Hasil Pencarian & Eksplorasi (Search States)
-            Expanded(
-              child: _buildBody(),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
@@ -359,18 +361,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             SizedBox(
               width: 36,
               height: 36,
-              child: CircularProgressIndicator(
-                color: kNavy,
-                strokeWidth: 3,
-              ),
+              child: CircularProgressIndicator(color: kNavy, strokeWidth: 3),
             ),
             SizedBox(height: 16),
             Text(
               'Memuat data buku...',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.black54,
-              ),
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
             ),
           ],
         ),
@@ -426,7 +422,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     _fetchBooksByCategory(_selectedCategory);
                   }
                 },
-                icon: Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 label: Text(
                   'Coba Lagi',
                   style: GoogleFonts.poppins(

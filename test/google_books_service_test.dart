@@ -28,7 +28,7 @@ void main() {
 
       expect(books, hasLength(1));
       expect(books.single.title, 'Flutter Basics');
-      expect(books.single.author, 'Penulis tidak diketahui');
+      expect(books.single.author, 'Penulis Tidak Diketahui');
       expect(books.single.coverUrl, isNull);
       expect(books.single.totalPages, 0);
     });

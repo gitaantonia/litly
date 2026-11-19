@@ -1,28 +1,34 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../database/database_initializer.dart';
 import '../models/book.dart';
+import 'google_books_service.dart';
 
-// Service untuk mengelola data buku lokal dan integrasi Google Books API v1
 class BookService {
+  BookService({GoogleBooksService? googleBooksService})
+    : _googleBooksService = googleBooksService ?? GoogleBooksService();
+
   static const _usernameKey = 'username';
   static const _legacyBooksKey = 'reading_books';
   static const _databaseName = 'litly.db';
-  static const _databaseVersion = 1;
+  static const _databaseVersion = 2;
+  final GoogleBooksService _googleBooksService;
   Database? _database;
 
   Future<Database> get _db async {
     if (_database != null) return _database!;
-    final path = p.join(await getDatabasesPath(), _databaseName);
-    _database = await openDatabase(
+    final factory = litlyDatabaseFactory;
+    final path = p.join(await factory.getDatabasesPath(), _databaseName);
+    _database = await factory.openDatabase(
       path,
-      version: _databaseVersion,
-      onCreate: (db, version) async {
-        await db.execute('''
+      options: OpenDatabaseOptions(
+        version: _databaseVersion,
+        onCreate: (db, version) async {
+          await db.execute('''
           CREATE TABLE books (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -30,6 +36,8 @@ class BookService {
             cover_url TEXT,
             publisher TEXT,
             published_date TEXT,
+            published_year TEXT,
+            category TEXT,
             isbn TEXT,
             description TEXT,
             total_pages INTEGER NOT NULL,
@@ -40,22 +48,31 @@ class BookService {
             added_at TEXT NOT NULL
           )
         ''');
-        final prefs = await SharedPreferences.getInstance();
-        final legacyBooks = prefs.getStringList(_legacyBooksKey) ?? [];
-        if (legacyBooks.isNotEmpty) {
-          final batch = db.batch();
-          for (final encodedBook in legacyBooks) {
-            final map = jsonDecode(encodedBook) as Map<String, dynamic>;
-            batch.insert(
-              'books',
-              Book.fromMap(map).toDatabaseMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+          final prefs = await SharedPreferences.getInstance();
+          final legacyBooks = prefs.getStringList(_legacyBooksKey) ?? [];
+          if (legacyBooks.isNotEmpty) {
+            final batch = db.batch();
+            for (final encodedBook in legacyBooks) {
+              final map = jsonDecode(encodedBook) as Map<String, dynamic>;
+              batch.insert(
+                'books',
+                Book.fromMap(map).toDatabaseMap(),
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+            await batch.commit(noResult: true);
+            await prefs.remove(_legacyBooksKey);
           }
-          await batch.commit(noResult: true);
-          await prefs.remove(_legacyBooksKey);
-        }
-      },
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute(
+              'ALTER TABLE books ADD COLUMN published_year TEXT',
+            );
+            await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
+          }
+        },
+      ),
     );
     return _database!;
   }
@@ -75,11 +92,6 @@ class BookService {
     await prefs.remove(_usernameKey);
   }
 
-<<<<<<< HEAD
-  // ─── LOCAL BOOKS (Fitur Reading Tracker kelompok) ─────────────────────
-
-=======
->>>>>>> 77451b8a04c578a1eaa747b4ca8c813759b3aaf4
   Future<List<Book>> getBooks() async {
     final db = await _db;
     final rows = await db.query('books', orderBy: 'added_at DESC');
@@ -112,100 +124,36 @@ class BookService {
     await db.delete('books', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ─── GOOGLE BOOKS API (PB-010 & PB-011) ──────────────────────────────
-
-  /// PB-010: Pencarian buku berdasarkan judul, penulis, atau ISBN
-  Future<List<Book>> searchGoogleBooks(String query, {int maxResults = 20}) async {
-    String cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) {
-      return [];
-    }
-
-    // Mendeteksi apakah pencarian berupa ISBN (hanya angka/tanda hubung, panjang 10-13)
-    String formattedQuery = cleanQuery;
-    String cleanIsbn = cleanQuery.replaceAll('-', '').replaceAll(' ', '');
-    bool isNumeric = RegExp(r'^[0-9Xx]+$').hasMatch(cleanIsbn);
-    if (isNumeric && (cleanIsbn.length == 10 || cleanIsbn.length == 13)) {
+  Future<List<Book>> searchGoogleBooks(
+    String query, {
+    int maxResults = 20,
+  }) async {
+    var formattedQuery = query.trim();
+    if (formattedQuery.isEmpty) return [];
+    final cleanIsbn = formattedQuery.replaceAll(RegExp(r'[-\s]'), '');
+    if (RegExp(r'^[0-9Xx]+$').hasMatch(cleanIsbn) &&
+        (cleanIsbn.length == 10 || cleanIsbn.length == 13)) {
       formattedQuery = 'isbn:$cleanIsbn';
     }
-
-    Uri uri = Uri.parse(
-      '$_googleBooksApiUrl?q=${Uri.encodeComponent(formattedQuery)}&maxResults=$maxResults&printType=books',
-    );
-
-    try {
-      final response = await http.get(uri).timeout(Duration(seconds: 12));
-
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
-        List? items = data['items'] as List?;
-        if (items == null || items.isEmpty) {
-          return [];
-        }
-
-        return items
-            .map((item) => Book.fromGoogleApi(item as Map<String, dynamic>))
-            .toList();
-      } else {
-        throw Exception('Server mengembalikan kode status ${response.statusCode}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    return _googleBooksService.searchBooks(formattedQuery, limit: maxResults);
   }
 
-  /// PB-011: Eksplorasi buku berdasarkan kategori menggunakan parameter subject
-  Future<List<Book>> fetchBooksByCategory(String category, {int maxResults = 20}) async {
-    String subjectQuery;
-
-    // Pemetaan kategori sesuai pembagian tugas PB-011
-    switch (category.toLowerCase()) {
-      case 'fiction':
-        subjectQuery = 'subject:fiction';
-        break;
-      case 'self-improvement':
-        subjectQuery = 'subject:self-help+OR+subject:personal+development';
-        break;
-      case 'technology':
-        subjectQuery = 'subject:computers+OR+subject:technology';
-        break;
-      case 'business':
-        subjectQuery = 'subject:business+OR+subject:economics';
-        break;
-      case 'history':
-        subjectQuery = 'subject:history';
-        break;
-      case 'psychology':
-        subjectQuery = 'subject:psychology';
-        break;
-      case 'all':
-      default:
-        subjectQuery = 'subject:reading+OR+subject:literature+OR+subject:popular';
-        break;
-    }
-
-    Uri uri = Uri.parse(
-      '$_googleBooksApiUrl?q=$subjectQuery&maxResults=$maxResults&orderBy=relevance&printType=books',
+  Future<List<Book>> fetchBooksByCategory(
+    String category, {
+    int maxResults = 20,
+  }) {
+    final subject = switch (category.toLowerCase()) {
+      'fiction' => 'fiction',
+      'self-improvement' => 'self-help OR personal development',
+      'technology' => 'computers OR technology',
+      'business' => 'business OR economics',
+      'history' => 'history',
+      'psychology' => 'psychology',
+      _ => 'reading OR literature OR popular',
+    };
+    return _googleBooksService.searchBooks(
+      'subject:($subject)',
+      limit: maxResults,
     );
-
-    try {
-      final response = await http.get(uri).timeout(Duration(seconds: 12));
-
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
-        List? items = data['items'] as List?;
-        if (items == null || items.isEmpty) {
-          return [];
-        }
-
-        return items
-            .map((item) => Book.fromGoogleApi(item as Map<String, dynamic>))
-            .toList();
-      } else {
-        throw Exception('Server mengembalikan kode status ${response.statusCode}');
-      }
-    } catch (e) {
-      rethrow;
-    }
   }
 }

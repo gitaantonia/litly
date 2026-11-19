@@ -1,4 +1,3 @@
-// Model data buku untuk aplikasi Litly
 class Book {
   final String id;
   final String title;
@@ -6,6 +5,8 @@ class Book {
   final String? coverUrl;
   final String? publisher;
   final String? publishedDate;
+  final String? publishedYear;
+  final String? category;
   final String? isbn;
   final String? description;
   final int totalPages;
@@ -15,17 +16,15 @@ class Book {
   int currentPage;
   final DateTime addedAt;
 
-  // Field tambahan dari Google Books API (PB-010 & PB-011)
-  final String? description;
-  final double? rating;
-  final String? isbn;
-
   Book({
     required this.id,
+    required this.title,
     required this.author,
     this.coverUrl,
     this.publisher,
     this.publishedDate,
+    this.publishedYear,
+    this.category,
     this.isbn,
     this.description,
     required this.totalPages,
@@ -34,117 +33,133 @@ class Book {
     this.status = 'Want to Read',
     this.currentPage = 0,
     required this.addedAt,
-    this.publishedYear,
-    this.category,
-    this.description,
-    this.rating,
-    this.isbn,
   });
 
-  /// Persentase progress membaca (0.0 – 1.0)
   double get progress =>
       totalPages > 0 ? (currentPage / totalPages).clamp(0.0, 1.0) : 0.0;
 
-  /// Persentase dalam bentuk teks, misal "42%"
   String get progressText => '${(progress * 100).round()}%';
 
   bool get isFinished => currentPage >= totalPages && totalPages > 0;
 
-  // Konversi dari/ke Map untuk disimpan di shared_preferences (kompatibel anggota kelompok)
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'coverUrl': coverUrl,
-        'totalPages': totalPages,
-        'currentPage': currentPage,
-        'addedAt': addedAt.toIso8601String(),
-        'publishedYear': publishedYear,
-        'category': category,
-        'description': description,
-        'rating': rating,
-        'isbn': isbn,
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'coverUrl': coverUrl,
+    'publisher': publisher,
+    'publishedDate': publishedDate,
+    'publishedYear': publishedYear,
+    'category': category,
+    'isbn': isbn,
+    'description': description,
+    'totalPages': totalPages,
+    'rating': rating,
+    'ratingsCount': ratingsCount,
+    'status': status,
+    'currentPage': currentPage,
+    'addedAt': addedAt.toIso8601String(),
+  };
+
+  Map<String, dynamic> toDatabaseMap() => {
+    'id': id,
+    'title': title,
+    'author': author,
+    'cover_url': coverUrl,
+    'publisher': publisher,
+    'published_date': publishedDate,
+    'published_year': publishedYear,
+    'category': category,
+    'isbn': isbn,
+    'description': description,
+    'total_pages': totalPages,
+    'rating': rating,
+    'ratings_count': ratingsCount,
+    'status': status,
+    'current_page': currentPage,
+    'added_at': addedAt.toIso8601String(),
+  };
+
+  factory Book.fromDatabaseMap(Map<String, dynamic> row) => Book(
+    id: row['id'] as String,
+    title: row['title'] as String,
+    author: row['author'] as String,
+    coverUrl: row['cover_url'] as String?,
+    publisher: row['publisher'] as String?,
+    publishedDate: row['published_date'] as String?,
+    publishedYear: row['published_year'] as String?,
+    category: row['category'] as String?,
+    isbn: row['isbn'] as String?,
+    description: row['description'] as String?,
+    totalPages: row['total_pages'] as int? ?? 0,
+    rating: (row['rating'] as num?)?.toDouble(),
+    ratingsCount: row['ratings_count'] as int?,
+    status: row['status'] as String? ?? 'Want to Read',
+    currentPage: row['current_page'] as int? ?? 0,
+    addedAt: DateTime.parse(row['added_at'] as String),
+  );
 
   factory Book.fromMap(Map<String, dynamic> map) => Book(
-        id: map['id'] as String,
-        title: map['title'] as String,
-        author: map['author'] as String,
-        coverUrl: map['coverUrl'] as String?,
-        totalPages: map['totalPages'] as int? ?? 0,
-        currentPage: map['currentPage'] as int? ?? 0,
-        addedAt: DateTime.parse(map['addedAt'] as String),
-        publishedYear: map['publishedYear'] as String?,
-        category: map['category'] as String?,
-        description: map['description'] as String?,
-        rating: (map['rating'] as num?)?.toDouble(),
-        isbn: map['isbn'] as String?,
-      );
+    id: map['id'] as String,
+    title: map['title'] as String? ?? 'Tanpa Judul',
+    author: map['author'] as String? ?? 'Penulis tidak diketahui',
+    coverUrl: map['coverUrl'] as String?,
+    publisher: map['publisher'] as String?,
+    publishedDate: map['publishedDate'] as String?,
+    publishedYear: map['publishedYear'] as String?,
+    category: map['category'] as String?,
+    isbn: map['isbn'] as String?,
+    description: map['description'] as String?,
+    totalPages: map['totalPages'] as int? ?? 0,
+    rating: (map['rating'] as num?)?.toDouble(),
+    ratingsCount: map['ratingsCount'] as int?,
+    status: map['status'] as String? ?? 'Want to Read',
+    currentPage: map['currentPage'] as int? ?? 0,
+    addedAt: DateTime.parse(map['addedAt'] as String),
+  );
 
-  // Factory untuk memetakan respon item dari Google Books API v1
   factory Book.fromGoogleApi(Map<String, dynamic> item) {
-    Map<String, dynamic> volumeInfo = item['volumeInfo'] as Map<String, dynamic>? ?? {};
-
-    // 1. Ekstrak thumbnail cover dan pastikan menggunakan HTTPS
-    String? thumbnail;
-    if (volumeInfo['imageLinks'] != null) {
-      Map<String, dynamic> images = volumeInfo['imageLinks'] as Map<String, dynamic>;
-      thumbnail = images['thumbnail'] as String? ?? images['smallThumbnail'] as String?;
-      if (thumbnail != null && thumbnail.startsWith('http://')) {
-        thumbnail = thumbnail.replaceFirst('http://', 'https://');
-      }
-    }
-
-    // 2. Ekstrak penulis
-    String authors = 'Penulis Tidak Diketahui';
-    if (volumeInfo['authors'] != null && (volumeInfo['authors'] as List).isNotEmpty) {
-      authors = (volumeInfo['authors'] as List).join(', ');
-    }
-
-    // 3. Ekstrak tahun terbit
-    String? year;
-    String? rawDate = volumeInfo['publishedDate'] as String?;
-    if (rawDate != null && rawDate.isNotEmpty) {
-      year = rawDate.split('-')[0].trim();
-    }
-
-    // 4. Ekstrak kategori utama
-    String? primaryCategory;
-    if (volumeInfo['categories'] != null && (volumeInfo['categories'] as List).isNotEmpty) {
-      primaryCategory = (volumeInfo['categories'] as List).first.toString();
-    }
-
-    // 5. Ekstrak ISBN
-    String? isbnValue;
-    if (volumeInfo['industryIdentifiers'] != null) {
-      List identifiers = volumeInfo['industryIdentifiers'] as List;
-      for (var idObj in identifiers) {
-        if (idObj is Map && (idObj['type'] == 'ISBN_13' || idObj['type'] == 'ISBN_10')) {
-          isbnValue = idObj['identifier']?.toString();
-          break;
-        }
-      }
-    }
-
-    // 6. Ekstrak rating
-    double? avgRating;
-    if (volumeInfo['averageRating'] != null) {
-      avgRating = (volumeInfo['averageRating'] as num).toDouble();
-    }
+    final volumeInfo = item['volumeInfo'] as Map<String, dynamic>? ?? const {};
+    final imageLinks =
+        volumeInfo['imageLinks'] as Map<String, dynamic>? ?? const {};
+    final authors = volumeInfo['authors'] as List<dynamic>? ?? const [];
+    final categories = volumeInfo['categories'] as List<dynamic>? ?? const [];
+    final identifiers =
+        volumeInfo['industryIdentifiers'] as List<dynamic>? ?? const [];
+    final publishedDate = volumeInfo['publishedDate'] as String?;
+    final isbn = identifiers.whereType<Map<String, dynamic>>().firstWhere(
+      (identifier) =>
+          identifier['type'] == 'ISBN_13' || identifier['type'] == 'ISBN_10',
+      orElse: () => const {},
+    );
+    final cover =
+        imageLinks['extraLarge'] ??
+        imageLinks['large'] ??
+        imageLinks['thumbnail'] ??
+        imageLinks['smallThumbnail'];
+    final authorNames = authors.whereType<String>().toList();
 
     return Book(
-      id: item['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          item['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       title: volumeInfo['title'] as String? ?? 'Tanpa Judul',
-      author: authors,
-      coverUrl: thumbnail,
-      totalPages: volumeInfo['pageCount'] as int? ?? 0,
-      currentPage: 0,
-      addedAt: DateTime.now(),
-      publishedYear: year,
-      category: primaryCategory,
+      author: authorNames.isEmpty
+          ? 'Penulis Tidak Diketahui'
+          : authorNames.join(', '),
+      coverUrl: cover is String
+          ? cover.replaceFirst('http://', 'https://')
+          : null,
+      publisher: volumeInfo['publisher'] as String?,
+      publishedDate: publishedDate,
+      publishedYear: publishedDate?.split('-').first,
+      category: categories.isEmpty ? null : categories.first.toString(),
+      isbn: isbn['identifier'] as String?,
       description: volumeInfo['description'] as String?,
-      rating: avgRating,
-      isbn: isbnValue,
+      totalPages: volumeInfo['pageCount'] as int? ?? 0,
+      rating: (volumeInfo['averageRating'] as num?)?.toDouble(),
+      ratingsCount: volumeInfo['ratingsCount'] as int?,
+      addedAt: DateTime.now(),
     );
   }
 }

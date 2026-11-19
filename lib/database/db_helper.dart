@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
+
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart';
+
 import 'package:litly/models/user_model.dart';
+import 'package:litly/database/database_initializer.dart';
 
 // Helper untuk mengelola database SQLite lokal Litly
 class DbHelper {
@@ -26,21 +27,16 @@ class DbHelper {
 
   // Membuat dan membuka database SQLite
   Future<Database> _initDatabase() async {
-    // Inisialisasi databaseFactory untuk platform Desktop (Windows / Linux)
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
-    String databasesPath = await getDatabasesPath();
+    final factory = litlyDatabaseFactory;
+    final databasesPath = await factory.getDatabasesPath();
     String path = join(databasesPath, 'litly_local.db');
 
-    return await openDatabase(
+    return factory.openDatabase(
       path,
-      version: 1,
-      onCreate: (db, version) async {
-        // Buat tabel users untuk penyimpanan akun lokal
-        await db.execute('''
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
           CREATE TABLE users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -50,7 +46,8 @@ class DbHelper {
             created_at TEXT
           )
         ''');
-      },
+        },
+      ),
     );
   }
 
@@ -85,7 +82,10 @@ class DbHelper {
   }
 
   // Memvalidasi proses login pengguna
-  Future<Map<String, dynamic>> loginUser(String email, String rawPassword) async {
+  Future<Map<String, dynamic>> loginUser(
+    String email,
+    String rawPassword,
+  ) async {
     Database db = await database;
     String cleanEmail = email.trim().toLowerCase();
 
@@ -118,11 +118,7 @@ class DbHelper {
     }
 
     // 3. Login sukses
-    return {
-      'status': 'success',
-      'message': 'Login berhasil',
-      'user': user,
-    };
+    return {'status': 'success', 'message': 'Login berhasil', 'user': user};
   }
 
   // Ambil data user berdasarkan email

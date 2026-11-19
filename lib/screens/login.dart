@@ -7,13 +7,9 @@ import 'package:litly/screens/home.dart';
 import 'package:litly/screens/register.dart';
 import 'package:litly/services/session_service.dart';
 
-import '../constants/colors.dart';
-import '../services/book_service.dart';
-import 'home.dart';
-
 // Halaman Login aplikasi Litly
 class LoginScreen extends StatefulWidget {
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -33,38 +29,10 @@ class _LoginScreenState extends State<LoginScreen> {
   String? emailError;
   String? passwordError;
 
-<<<<<<< HEAD
   // Status toggle
   bool obscurePassword = true;
   bool rememberMe = true;
   bool isLoading = false;
-=======
-  void _goHome(String name) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => HomeScreen(username: name)),
-    );
-  }
-
-  Future<void> _login() async {
-    final name = _controller.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Masukkan nama kamu dulu!',
-            style: GoogleFonts.poppins(),
-          ),
-          backgroundColor: kPurple,
-        ),
-      );
-      return;
-    }
-    await _service.saveUsername(name);
-    if (!mounted) return;
-    _goHome(name);
-  }
->>>>>>> 77451b8a04c578a1eaa747b4ca8c813759b3aaf4
 
   @override
   void dispose() {
@@ -146,10 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Kata sandi salah',
-              style: GoogleFonts.poppins(),
-            ),
+            content: Text('Kata sandi salah', style: GoogleFonts.poppins()),
             backgroundColor: errorRed,
           ),
         );
@@ -178,9 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => HomeScreen(
-              username: loggedInUser.name,
-            ),
+            builder: (context) => HomeScreen(username: loggedInUser.name),
           ),
         );
       }
@@ -207,15 +170,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        backgroundColor: kBackground,
-        body: SafeArea(
-          child: Center(child: CircularProgressIndicator(color: kPurple)),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -304,10 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       emailError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -377,10 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       passwordError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -457,12 +405,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: (isFormValid && !isLoading)
-                      ? _handleLogin
-                      : null,
+                  onPressed: (isFormValid && !isLoading) ? _handleLogin : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryPurple,
-                    disabledBackgroundColor: primaryPurple.withValues(alpha: 0.45),
+                    disabledBackgroundColor: primaryPurple.withValues(
+                      alpha: 0.45,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),

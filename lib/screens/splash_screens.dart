@@ -2,9 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:litly/screens/home_placeholder.dart';
 import 'package:litly/screens/login.dart';
-import 'package:litly/services/session_service.dart';
 
 final Color _yellow = Color(0xFFFAE696);
 final Color _purple = Color(0xFF6B4585);
@@ -47,7 +45,8 @@ class _SplashScreenState extends State<SplashScreen>
     // Ukuran bintang (radius terluar)
     final r3 =
         size.width * 0.55; // gambar 3: bintang besar, sebagian keluar layar
-    final double r4 = 85.0; // gambar 4: ukuran bintang kecil (sesuaikan dgn PNG)
+    final double r4 =
+        85.0; // gambar 4: ukuran bintang kecil (sesuaikan dgn PNG)
     final halfDiag =
         sqrt(size.width * size.width + size.height * size.height) / 2;
     final r0 =
