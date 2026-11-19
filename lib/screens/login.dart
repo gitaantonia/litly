@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../constants/colors.dart';
 import '../services/book_service.dart';
 import 'home.dart';
@@ -45,8 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Masukkan nama kamu dulu!',
-              style: GoogleFonts.poppins()),
+          content: Text(
+            'Masukkan nama kamu dulu!',
+            style: GoogleFonts.poppins(),
+          ),
           backgroundColor: kPurple,
         ),
       );
@@ -68,7 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: kBackground,
-        body: Center(child: CircularProgressIndicator(color: kPurple)),
+        body: SafeArea(
+          child: Center(child: CircularProgressIndicator(color: kPurple)),
+        ),
       );
     }
 
@@ -94,10 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               Text(
                 'Siapa nama kamu?',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
+                style: GoogleFonts.poppins(fontSize: 16, color: Colors.black54),
               ),
 
               const SizedBox(height: 48),
@@ -154,10 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Mascot kecil di bawah
               Center(
-                child: Image.asset(
-                  'assets/images/liti_mascot.png',
-                  width: 120,
-                ),
+                child: Image.asset('assets/images/liti_mascot.png', width: 120),
               ),
               const SizedBox(height: 32),
             ],

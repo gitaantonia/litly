@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/colors.dart';
-import '../models/book.dart';
-import '../services/book_service.dart';
-
-// import 'search_book.dart';
-// import 'book_detail.dart';
-// import '../widgets/book_card.dart';
+import '../state/app_state.dart';
+import 'discover.dart';
+import 'library.dart';
+import 'profile.dart';
+import 'statistics.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -18,186 +18,214 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _service = BookService();
-  List<Book> _books = [];
-  bool _loading = true;
+  int _selectedIndex = 0;
+  late final List<Widget> _pages = [
+    HomeTab(username: widget.username, onDiscover: () => _selectTab(1)),
+    const DiscoverScreen(),
+    LibraryScreen(onDiscover: () => _selectTab(1)),
+    const StatisticsScreen(),
+    ProfileScreen(username: widget.username),
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadBooks();
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
   }
-
-  Future<void> _loadBooks() async {
-    final books = await _service.getBooks();
-    if (!mounted) return;
-    setState(() {
-      _books = books;
-      _loading = false;
-    });
-  }
-
-  // Future<void> _openSearch() async {
-  //   final added = await Navigator.push<bool>(
-  //     context,
-  //     MaterialPageRoute(builder: (_) => const SearchBookScreen()),
-  //   );
-  //   if (added == true) _loadBooks();
-  // }
-
-  // Future<void> _openDetail(Book book) async {
-  //   final changed = await Navigator.push<bool>(
-  //     context,
-  //     MaterialPageRoute(builder: (_) => BookDetailScreen(book: book)),
-  //   );
-  //   if (changed == true) _loadBooks();
-  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackground,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: IndexedStack(index: _selectedIndex, children: _pages),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
+        backgroundColor: Colors.white,
+        indicatorColor: const Color(0xFFE9EAF0),
+        elevation: 8,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore_rounded),
+            label: 'Discover',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bookmark_border_rounded),
+            selectedIcon: Icon(Icons.bookmark_rounded),
+            label: 'My Library',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights_rounded),
+            label: 'Statistics',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HomeTab extends StatelessWidget {
+  const HomeTab({super.key, required this.username, required this.onDiscover});
+
+  final String username;
+  final VoidCallback onDiscover;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth > 600 ? 40.0 : 24.0;
+        return ListView(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            24,
+            horizontalPadding,
+            28,
+          ),
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+            Row(
+              children: [
+                Image.asset('assets/images/liti_mascot.png', width: 42),
+                const SizedBox(width: 10),
+                Text(
+                  'Litly',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: kPurple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Hai, $username! 👋',
+              style: GoogleFonts.poppins(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF252A3D),
+              ),
+            ),
+            Text(
+              'Lanjutkan perjalanan bacamu hari ini.',
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+            const _ReadingStats(),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E365A),
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Image.asset('assets/images/liti_mascot.png', width: 40),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Litly',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: kPurple,
-                        ),
-                      ),
-                    ],
+                  const Icon(
+                    Icons.auto_stories_rounded,
+                    color: Color(0xFFFAE696),
+                    size: 30,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Text(
-                    'Hai, ${widget.username}! 👋',
+                    'Temukan cerita\nfavoritmu berikutnya',
                     style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
                     ),
                   ),
+                  const SizedBox(height: 8),
                   Text(
-                    'Lanjutkan bacaanmu hari ini',
+                    'Jelajahi pilihan buku dari seluruh dunia.',
                     style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.black45,
+                      color: Colors.white70,
+                      fontSize: 12,
                     ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: onDiscover,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFAE696),
+                      foregroundColor: const Color(0xFF2E365A),
+                    ),
+                    child: const Text('Jelajahi Buku'),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Stats ringkas
-            if (_books.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: _StatsRow(books: _books),
-              ),
-
-            const SizedBox(height: 20),
-
-            // Label daftar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'Sedang Dibaca',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+            const SizedBox(height: 26),
+            Text(
+              'Mulai dari yang kamu suka',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF252A3D),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // // Daftar buku / empty state
-            // Expanded(
-            //   child: _loading
-            //       ? const Center(
-            //           child: CircularProgressIndicator(color: kPurple))
-            //       : _books.isEmpty
-            //           ? _EmptyState(onAdd: _openSearch)
-            //           : ListView.separated(
-            //               padding: const EdgeInsets.symmetric(horizontal: 24),
-            //               itemCount: _books.length,
-            //               separatorBuilder: (_, __) =>
-            //                   const SizedBox(height: 12),
-            //               itemBuilder: (_, i) => BookCard(
-            //                 book: _books[i],
-            //                 onTap: () => _openDetail(_books[i]),
-            //               ),
-            //             ),
-            // ),
+            const Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _QuickCategory(label: 'Fiksi', icon: Icons.auto_stories),
+                _QuickCategory(label: 'Pengembangan Diri', icon: Icons.spa),
+                _QuickCategory(label: 'Fantasi', icon: Icons.nightlight_round),
+              ],
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
-    // Tombol tambah buku
-    //   floatingActionButton: FloatingActionButton.extended(
-    //     // onPressed: _openSearch,
-    //     backgroundColor: kPurple,
-    //     icon: const Icon(Icons.search, color: Colors.white),
-    //     label: Text(
-    //       'Cari Buku',
-    //       style: GoogleFonts.poppins(
-    //         fontWeight: FontWeight.w600,
-    //         color: Colors.white,
-    //       ),
-    //     ),
-    //   ),
-    // );
   }
 }
 
-// ─── Widget Statistik ───────────────────────────────────────────────────────
-
-class _StatsRow extends StatelessWidget {
-  final List<Book> books;
-  const _StatsRow({required this.books});
+class _ReadingStats extends StatelessWidget {
+  const _ReadingStats();
 
   @override
   Widget build(BuildContext context) {
-    final finished = books.where((b) => b.isFinished).length;
-    final reading = books.length - finished;
-    return Row(
-      children: [
-        _StatChip(label: 'Dibaca', value: '$reading', icon: Icons.menu_book),
-        const SizedBox(width: 12),
-        _StatChip(
-          label: 'Selesai',
-          value: '$finished',
-          icon: Icons.check_circle_outline,
-        ),
-      ],
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final reading = state.books
+            .where((book) => book.status == 'Currently Reading')
+            .length;
+        final completed = state.books
+            .where((book) => book.status == 'Completed')
+            .length;
+        return Row(
+          children: [
+            _StatChip(label: 'Sedang Dibaca', value: reading),
+            const SizedBox(width: 12),
+            _StatChip(label: 'Selesai', value: completed),
+          ],
+        );
+      },
     );
   }
 }
 
 class _StatChip extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  const _StatChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _StatChip({required this.label, required this.value});
+
+  final String label;
+  final int value;
 
   @override
   Widget build(BuildContext context) {
@@ -210,27 +238,31 @@ class _StatChip extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: kPurple),
+            const Icon(Icons.menu_book_rounded, size: 20, color: kPurple),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: kPurple,
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$value',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: kPurple,
+                    ),
                   ),
-                ),
-                Text(
-                  label,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: Colors.black54,
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.black54,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -239,58 +271,20 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-// ─── Empty State ─────────────────────────────────────────────────────────────
+class _QuickCategory extends StatelessWidget {
+  const _QuickCategory({required this.label, required this.icon});
 
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onAdd;
-  const _EmptyState({required this.onAdd});
+  final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.auto_stories_outlined,
-            size: 72,
-            color: kButtonColor,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Belum ada buku nih...',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Cari dan tambahkan buku pertamamu!',
-            style: GoogleFonts.poppins(fontSize: 13, color: Colors.black38),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.search, color: Colors.white),
-            label: Text(
-              'Cari Buku',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPurple,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
+    return Chip(
+      avatar: Icon(icon, size: 17, color: const Color(0xFF2E365A)),
+      label: Text(label),
+      backgroundColor: const Color(0xFFF0F1F6),
+      side: BorderSide.none,
+      labelStyle: GoogleFonts.poppins(fontSize: 11),
     );
   }
 }
