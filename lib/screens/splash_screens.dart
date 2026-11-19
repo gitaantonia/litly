@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:litly/screens/login.dart';
 
 const _yellow = Color(0xFFFAE696);
 const _purple = Color(0xFF6B4585);
@@ -178,9 +179,12 @@ class _SplashScreenState extends State<SplashScreen>
                       child: ElevatedButton(
                         onPressed: uiT >= 1
                             ? () {
-                                // TODO: pindah ke halaman berikutnya
-                                // Navigator.pushReplacement(context,
-                                //   MaterialPageRoute(builder: (_) => const HomePage()));
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const LoginScreen(),
+                                  ),
+                                );
                               }
                             : null,
                         style: ElevatedButton.styleFrom(
@@ -269,7 +273,7 @@ class _StarEyesPainter extends CustomPainter {
     if (starOpacity > 0) {
       canvas.drawPath(
         _roundedStar(c, starRadius),
-        Paint()..color = _yellow.withOpacity(starOpacity.clamp(0, 1)),
+        Paint()..color = _yellow.withValues(alpha: starOpacity.clamp(0, 1)),
       );
     }
 
@@ -279,9 +283,9 @@ class _StarEyesPainter extends CustomPainter {
     canvas.translate(c.dx, c.dy);
     canvas.scale(eyeScale);
 
-    final purple = Paint()..color = _purple.withOpacity(eyeOpacity.clamp(0, 1));
+    final purple = Paint()..color = _purple.withValues(alpha: eyeOpacity.clamp(0, 1));
     final white = Paint()
-      ..color = Colors.white.withOpacity(eyeOpacity.clamp(0, 1));
+      ..color = Colors.white.withValues(alpha: eyeOpacity.clamp(0, 1));
 
     void openEye(double cx, double open) {
       final h = 51.0 * open;
@@ -312,7 +316,7 @@ class _StarEyesPainter extends CustomPainter {
       canvas.drawPath(
         arc,
         Paint()
-          ..color = _purple.withOpacity(eyeOpacity.clamp(0, 1))
+          ..color = _purple.withValues(alpha: eyeOpacity.clamp(0, 1))
           ..style = PaintingStyle.stroke
           ..strokeWidth = 4
           ..strokeCap = StrokeCap.round,
