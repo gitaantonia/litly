@@ -3,7 +3,14 @@ class Book {
   final String title;
   final String author;
   final String? coverUrl;
+  final String? publisher;
+  final String? publishedDate;
+  final String? isbn;
+  final String? description;
   final int totalPages;
+  final double? rating;
+  final int? ratingsCount;
+  String status;
   int currentPage;
   final DateTime addedAt;
 
@@ -12,7 +19,14 @@ class Book {
     required this.title,
     required this.author,
     this.coverUrl,
+    this.publisher,
+    this.publishedDate,
+    this.isbn,
+    this.description,
     required this.totalPages,
+    this.rating,
+    this.ratingsCount,
+    this.status = 'Want to Read',
     this.currentPage = 0,
     required this.addedAt,
   });
@@ -26,24 +40,72 @@ class Book {
 
   bool get isFinished => currentPage >= totalPages && totalPages > 0;
 
-  // Konversi dari/ke Map untuk disimpan di shared_preferences
+  // Konversi dari/ke Map untuk penyimpanan SQLite.
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'coverUrl': coverUrl,
-        'totalPages': totalPages,
-        'currentPage': currentPage,
-        'addedAt': addedAt.toIso8601String(),
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'coverUrl': coverUrl,
+    'publisher': publisher,
+    'publishedDate': publishedDate,
+    'isbn': isbn,
+    'description': description,
+    'totalPages': totalPages,
+    'rating': rating,
+    'ratingsCount': ratingsCount,
+    'status': status,
+    'currentPage': currentPage,
+    'addedAt': addedAt.toIso8601String(),
+  };
+
+  Map<String, dynamic> toDatabaseMap() => {
+    'id': id,
+    'title': title,
+    'author': author,
+    'cover_url': coverUrl,
+    'publisher': publisher,
+    'published_date': publishedDate,
+    'isbn': isbn,
+    'description': description,
+    'total_pages': totalPages,
+    'rating': rating,
+    'ratings_count': ratingsCount,
+    'status': status,
+    'current_page': currentPage,
+    'added_at': addedAt.toIso8601String(),
+  };
+
+  factory Book.fromDatabaseMap(Map<String, dynamic> row) => Book(
+    id: row['id'] as String,
+    title: row['title'] as String,
+    author: row['author'] as String,
+    coverUrl: row['cover_url'] as String?,
+    publisher: row['publisher'] as String?,
+    publishedDate: row['published_date'] as String?,
+    isbn: row['isbn'] as String?,
+    description: row['description'] as String?,
+    totalPages: row['total_pages'] as int? ?? 0,
+    rating: (row['rating'] as num?)?.toDouble(),
+    ratingsCount: row['ratings_count'] as int?,
+    status: row['status'] as String? ?? 'Want to Read',
+    currentPage: row['current_page'] as int? ?? 0,
+    addedAt: DateTime.parse(row['added_at'] as String),
+  );
 
   factory Book.fromMap(Map<String, dynamic> map) => Book(
-        id: map['id'] as String,
-        title: map['title'] as String,
-        author: map['author'] as String,
-        coverUrl: map['coverUrl'] as String?,
-        totalPages: map['totalPages'] as int,
-        currentPage: map['currentPage'] as int? ?? 0,
-        addedAt: DateTime.parse(map['addedAt'] as String),
-      );
+    id: map['id'] as String,
+    title: map['title'] as String,
+    author: map['author'] as String,
+    coverUrl: map['coverUrl'] as String?,
+    publisher: map['publisher'] as String?,
+    publishedDate: map['publishedDate'] as String?,
+    isbn: map['isbn'] as String?,
+    description: map['description'] as String?,
+    totalPages: map['totalPages'] as int? ?? 0,
+    rating: (map['rating'] as num?)?.toDouble(),
+    ratingsCount: map['ratingsCount'] as int?,
+    status: map['status'] as String? ?? 'Want to Read',
+    currentPage: map['currentPage'] as int? ?? 0,
+    addedAt: DateTime.parse(map['addedAt'] as String),
+  );
 }
