@@ -20,6 +20,7 @@ dependencies:
   provider: ^6.1.5+1
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
+  sqflite_common_ffi_web: ^1.2.2
 
 dev_dependencies:
   flutter_test:

@@ -9,7 +9,7 @@ import 'package:litly/services/session_service.dart';
 
 // Halaman Login aplikasi Litly
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();

@@ -1,9 +1,8 @@
 import 'dart:convert';
-
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
 import 'package:litly/models/user_model.dart';
 import 'package:litly/database/database_initializer.dart';
 
@@ -25,30 +24,44 @@ class DbHelper {
     return _database!;
   }
 
-  // Membuat dan membuka database SQLite
+  // Membuat dan membuka database SQLite sesuai platform aktif
   Future<Database> _initDatabase() async {
     final factory = litlyDatabaseFactory;
-    final databasesPath = await factory.getDatabasesPath();
-    String path = join(databasesPath, 'litly_local.db');
+    String path;
+
+    if (kIsWeb) {
+      path = 'litly_local.db';
+    } else {
+      final databasesPath = await factory.getDatabasesPath();
+      path = join(databasesPath, 'litly_local.db');
+    }
 
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
         version: 1,
         onCreate: (db, version) async {
-          await db.execute('''
-          CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            security_pin TEXT NOT NULL,
-            created_at TEXT
-          )
-        ''');
+          await _createTables(db);
+        },
+        onOpen: (db) async {
+          await _createTables(db);
         },
       ),
     );
+  }
+
+  // Memastikan tabel users selalu ada dan siap digunakan
+  Future<void> _createTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        security_pin TEXT NOT NULL,
+        created_at TEXT
+      )
+    ''');
   }
 
   // Fungsi untuk hashing password menggunakan SHA-256

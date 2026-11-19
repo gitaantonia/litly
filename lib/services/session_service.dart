@@ -20,6 +20,7 @@ class SessionService {
     await prefs.setString(keyUserName, user.name);
     await prefs.setString(keyUserEmail, user.email);
     await prefs.setBool(keyRememberMe, rememberMe);
+    await prefs.setString('username', user.name);
   }
 
   // Memeriksa apakah pengguna memiliki sesi login yang aktif
@@ -49,5 +50,6 @@ class SessionService {
     await prefs.remove(keyUserName);
     await prefs.remove(keyUserEmail);
     await prefs.setBool(keyRememberMe, false);
+    await prefs.remove('username');
   }
 }

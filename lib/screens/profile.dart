@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/book_service.dart';
+import '../services/session_service.dart';
 import 'login.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -11,9 +12,10 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     await BookService().clearUsername();
+    await SessionService.clearSession();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      MaterialPageRoute<void>(builder: (_) => LoginScreen()),
       (_) => false,
     );
   }
