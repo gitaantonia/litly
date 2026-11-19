@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
@@ -9,10 +10,21 @@ bool _isFactoryInitialized = false;
 
 // Fungsi untuk memeriksa apakah platform saat ini adalah desktop (Windows, Linux, macOS)
 bool _isDesktopPlatform(TargetPlatform platform) {
-  return !kIsWeb &&
-      (platform == TargetPlatform.windows ||
-          platform == TargetPlatform.linux ||
-          platform == TargetPlatform.macOS);
+  if (kIsWeb) return false;
+
+  // Pada perangkat fisik / emulator Android dan iOS asli
+  try {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return false;
+    }
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return true;
+    }
+  } catch (_) {}
+
+  return platform == TargetPlatform.windows ||
+      platform == TargetPlatform.linux ||
+      platform == TargetPlatform.macOS;
 }
 
 // Inisialisasi databaseFactory sesuai platform yang digunakan
