@@ -318,7 +318,6 @@ class BookService {
   Future<List<Book>> searchGoogleBooks(
     String query, {
     int maxResults = 20,
-    String languageCode = 'id',
   }) async {
     var formattedQuery = query.trim();
     if (formattedQuery.isEmpty) return [];
@@ -330,23 +329,27 @@ class BookService {
     return _googleBooksService.searchBooks(
       formattedQuery,
       limit: maxResults,
-      languageCode: languageCode,
+      languageCode: 'id',
     );
   }
 
   Future<List<Book>> fetchBooksByCategory(
     String category, {
     int maxResults = 40,
-    String? languageCode = 'id',
   }) {
     final normalizedCategory = category.trim();
-    final query = normalizedCategory.toLowerCase() == 'all'
-        ? 'novel'
-        : 'subject:"$normalizedCategory"';
+    final query = switch (normalizedCategory.toLowerCase()) {
+      'all' => 'book',
+      'novel' => 'subject:fiction',
+      'biografi' => 'subject:biography',
+      'sains' => 'subject:science',
+      'sejarah' => 'subject:history',
+      _ => 'subject:"$normalizedCategory"',
+    };
     return _googleBooksService.searchBooks(
       query,
       limit: maxResults,
-      languageCode: languageCode,
+      languageCode: 'id',
     );
   }
 }

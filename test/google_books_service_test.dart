@@ -8,11 +8,11 @@ import 'package:litly/services/google_books_service.dart';
 
 void main() {
   group('GoogleBooksService', () {
-    test('filters by the category supplied by Google Books', () async {
+    test('maps varied shelf filters to Google Books subjects', () async {
       final service = BookService(
         googleBooksService: GoogleBooksService(
           client: MockClient((request) async {
-            expect(request.url.queryParameters['q'], 'subject:"Fiction"');
+            expect(request.url.queryParameters['q'], 'subject:biography');
             expect(request.url.queryParameters['langRestrict'], 'id');
             expect(request.url.queryParameters['maxResults'], '40');
             return http.Response('{"items":[]}', 200);
@@ -20,14 +20,14 @@ void main() {
         ),
       );
 
-      expect(await service.fetchBooksByCategory('Fiction'), isEmpty);
+      expect(await service.fetchBooksByCategory('Biografi'), isEmpty);
     });
 
-    test('starts with Indonesian books for the All category', () async {
+    test('loads an Indonesian catalog for the All category', () async {
       final service = BookService(
         googleBooksService: GoogleBooksService(
           client: MockClient((request) async {
-            expect(request.url.queryParameters['q'], 'novel');
+            expect(request.url.queryParameters['q'], 'book');
             expect(request.url.queryParameters['langRestrict'], 'id');
             return http.Response('{"items":[]}', 200);
           }),
@@ -37,7 +37,7 @@ void main() {
       expect(await service.fetchBooksByCategory('All'), isEmpty);
     });
 
-    test('restricts book search to Indonesian language', () async {
+    test('restricts book search to Indonesian-language results', () async {
       final service = BookService(
         googleBooksService: GoogleBooksService(
           client: MockClient((request) async {
