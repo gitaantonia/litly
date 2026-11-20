@@ -25,15 +25,19 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   // Timer untuk mekanisme debounce 500ms (PB-010)
   Timer? _debounce;
 
-  List<String> _apiCategories = [];
-  List<String> get _categories => ['All', ..._apiCategories];
+  final List<String> _categories = [
+    'All',
+    'Novel',
+    'Biografi',
+    'Sains',
+    'Sejarah',
+  ];
 
   // Kategori aktif saat ini
   String _selectedCategory = 'All';
 
   // Data hasil buku dari Google Books API
   List<Book> _books = [];
-  List<Book> _allBooks = [];
 
   // Status tampilan pencarian (Search States)
   bool _isLoading = false;
@@ -57,24 +61,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   // Mengambil buku berdasarkan kategori terpilih (PB-011)
   void _fetchBooksByCategory(String category) async {
-    if (category != 'All') {
-      setState(() {
-        _isLoading = true;
-        _isError = false;
-        _errorMessage = '';
-      });
-
-      final categoryBooks = _allBooks
-          .where((book) => _matchesCategory(book, category))
-          .toList();
-      if (!mounted) return;
-      setState(() {
-        _books = categoryBooks;
-        _isLoading = false;
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _isError = false;
@@ -82,37 +68,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     });
 
     try {
-      List<Book> result = await _bookService.fetchBooksByCategory(category);
+      var result = await _bookService.fetchBooksByCategory(category);
       var completeBooks = _completeBooks(result);
       if (category == 'All' && completeBooks.isEmpty) {
-        result = await _bookService.searchGoogleBooks(
-          'buku',
-          maxResults: 40,
-          languageCode: 'id',
-        );
+        result = await _bookService.searchGoogleBooks('books', maxResults: 40);
         completeBooks = _completeBooks(result);
       }
       if (!mounted) return;
       setState(() {
-        _allBooks = completeBooks;
         _books = completeBooks;
-        final categoryCounts = <String, int>{};
-        for (final book in completeBooks) {
-          final bookCategory = book.category?.split('/').first.trim();
-          if (bookCategory != null && bookCategory.isNotEmpty) {
-            categoryCounts.update(
-              bookCategory,
-              (count) => count + 1,
-              ifAbsent: () => 1,
-            );
-          }
-        }
-        final sortedCategories = categoryCounts.entries.toList()
-          ..sort((first, second) => second.value.compareTo(first.value));
-        _apiCategories = sortedCategories
-            .take(4)
-            .map((entry) => entry.key)
-            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -158,20 +122,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
   }
 
-  bool _matchesCategory(Book book, String category) {
-    final actualCategory = book.category?.trim().toLowerCase();
-    final selectedCategory = category.trim().toLowerCase();
-    return actualCategory == selectedCategory ||
-        (actualCategory?.startsWith('$selectedCategory /') ?? false);
-  }
-
   List<Book> _completeBooks(Iterable<Book> books) {
     return books.where((book) {
       return book.title.trim().isNotEmpty &&
           book.author.trim().isNotEmpty &&
           book.author != 'Penulis Tidak Diketahui' &&
-          (book.coverUrl?.trim().isNotEmpty ?? false) &&
-          book.language?.toLowerCase() == 'id';
+          (book.coverUrl?.trim().isNotEmpty ?? false);
     }).toList();
   }
 
@@ -208,18 +164,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Color _getChipBgColor(String category) {
     final normalizedCategory = category.toLowerCase();
     if (normalizedCategory == 'all') return Color(0xFFF1EEF6);
-    if (normalizedCategory.contains('fiction')) return Color(0xFFFCEAEF);
-    if (normalizedCategory.contains('philosophy')) return Color(0xFFECE5F8);
-    if (normalizedCategory.contains('audio')) return Color(0xFFFFE9D7);
+    if (normalizedCategory.contains('novel')) return Color(0xFFFCEAEF);
+    if (normalizedCategory.contains('biografi')) return Color(0xFFECE5F8);
+    if (normalizedCategory.contains('sains')) return Color(0xFFE5F2F8);
+    if (normalizedCategory.contains('sejarah')) return Color(0xFFFAF2DE);
     return Color(0xFFE9EAF1);
   }
 
   // Mendapatkan warna teks chip ketika tidak aktif
   Color _getChipTextColor(String category) {
     final normalizedCategory = category.toLowerCase();
-    if (normalizedCategory.contains('fiction')) return Color(0xFFD45278);
-    if (normalizedCategory.contains('philosophy')) return Color(0xFF7856A9);
-    if (normalizedCategory.contains('audio')) return Color(0xFFC87442);
+    if (normalizedCategory.contains('novel')) return Color(0xFFD45278);
+    if (normalizedCategory.contains('biografi')) return Color(0xFF7856A9);
+    if (normalizedCategory.contains('sains')) return Color(0xFF3E82A8);
+    if (normalizedCategory.contains('sejarah')) return Color(0xFFA38332);
     return kNavy;
   }
 
