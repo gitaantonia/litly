@@ -6,6 +6,7 @@ class UserModel {
   String password; // Disimpan dalam bentuk hash
   String securityPin; // PIN keamanan untuk Forgot Password
   String? createdAt;
+  String? avatar; // // BARU: path avatar yang dipilih pengguna
 
   UserModel({
     this.id,
@@ -14,6 +15,7 @@ class UserModel {
     required this.password,
     required this.securityPin,
     this.createdAt,
+    this.avatar, // // BARU
   });
 
   // Konversi objek UserModel ke bentuk Map untuk disimpan di SQLite
@@ -24,6 +26,7 @@ class UserModel {
       'password': password,
       'security_pin': securityPin,
       'created_at': createdAt ?? DateTime.now().toIso8601String(),
+      'avatar': avatar, // // BARU
     };
     if (id != null) {
       map['id'] = id;
@@ -40,6 +43,7 @@ class UserModel {
       password: map['password'] ?? '',
       securityPin: map['security_pin'] ?? '',
       createdAt: map['created_at'],
+      avatar: map['avatar'], // // BARU
     );
   }
 }

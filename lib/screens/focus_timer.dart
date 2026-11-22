@@ -8,6 +8,8 @@ import '../models/reading_session.dart';
 import '../services/book_service.dart';
 import '../services/focus_timer_service.dart';
 import '../state/app_state.dart';
+import '../providers/auth_provider.dart';
+import '../providers/goal_provider.dart';
 
 // Halaman Focus Timer untuk mencatat sesi fokus membaca
 class FocusTimerScreen extends StatefulWidget {
@@ -267,6 +269,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
       }
 
       if (!mounted) return;
+
+      int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
+      context.read<GoalProvider>().checkGoalAndCelebrate(context, userId); // cek target harian
 
       // 4. Tampilkan dialog ringkasan sesi membaca (PB-033)
       await showDialog(
