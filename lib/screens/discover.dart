@@ -27,10 +27,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   final List<String> _categories = [
     'All',
-    'Novel',
-    'Biografi',
-    'Sains',
-    'Sejarah',
+    'Fiction',
+    'Bestseller',
+    'Reference',
+    'Feminism',
   ];
 
   // Kategori aktif saat ini
@@ -163,21 +163,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   // Mendapatkan warna latar belakang chip ketika tidak aktif
   Color _getChipBgColor(String category) {
     final normalizedCategory = category.toLowerCase();
-    if (normalizedCategory == 'all') return Color(0xFFF1EEF6);
-    if (normalizedCategory.contains('novel')) return Color(0xFFFCEAEF);
-    if (normalizedCategory.contains('biografi')) return Color(0xFFECE5F8);
-    if (normalizedCategory.contains('sains')) return Color(0xFFE5F2F8);
-    if (normalizedCategory.contains('sejarah')) return Color(0xFFFAF2DE);
-    return Color(0xFFE9EAF1);
+    if (normalizedCategory == 'all') return Color(0xFFF1ECF1);
+    if (normalizedCategory.contains('FICTION')) return Color(0xFFF5E9E4);
+    if (normalizedCategory.contains('BESTSELLER')) return Color(0xFFF1ECF1);
+    if (normalizedCategory.contains('REFERENCE')) return Color(0xFFEAF0E8);
+    if (normalizedCategory.contains('FEMINISM')) return Color(0xFFF7F1DE);
+    return Color(0xFFF1EFEB);
   }
 
   // Mendapatkan warna teks chip ketika tidak aktif
   Color _getChipTextColor(String category) {
     final normalizedCategory = category.toLowerCase();
-    if (normalizedCategory.contains('novel')) return Color(0xFFD45278);
-    if (normalizedCategory.contains('biografi')) return Color(0xFF7856A9);
-    if (normalizedCategory.contains('sains')) return Color(0xFF3E82A8);
-    if (normalizedCategory.contains('sejarah')) return Color(0xFFA38332);
+    if (normalizedCategory.contains('FICTION')) return Color(0xFFA65F59);
+    if (normalizedCategory.contains('BESTSELLER')) return Color(0xFF6A4D67);
+    if (normalizedCategory.contains('REFERENCE')) return Color(0xFF62735C);
+    if (normalizedCategory.contains('FEMINISM')) return Color(0xFF957335);
     return kNavy;
   }
 
@@ -186,7 +186,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF4F4FA),
+      backgroundColor: Color(0xFFFAF8F3),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +397,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 child: Icon(
                   Icons.wifi_off_rounded,
                   size: 36,
-                  color: Color(0xFFD32F2F),
+                  color: Color(0xFFA65F59),
                 ),
               ),
               SizedBox(height: 16),
