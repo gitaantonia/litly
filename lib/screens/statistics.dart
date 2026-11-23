@@ -1,27 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
-import '../constants/colors.dart';
+import '../constants/reading_colors.dart';
 import '../models/book.dart';
 import '../models/reading_session.dart';
 import '../services/book_service.dart';
 import '../state/app_state.dart';
+
+class _ReadingBucket {
+  const _ReadingBucket({required this.label, required this.minutes});
+
+  final String label;
+  final int minutes;
+}
 
 // Halaman Statistik dan Kebiasaan Membaca Litly (PB-010 & PB-011 / PB-023)
 class StatisticsScreen extends StatefulWidget {
   final BookService? bookService;
   final List<ReadingSession>? initialSessions;
   final List<Book>? initialBooks;
-  final int? initialAnnualGoal;
 
   StatisticsScreen({
     super.key,
     this.bookService,
     this.initialSessions,
     this.initialBooks,
-    this.initialAnnualGoal,
   });
 
   @override
@@ -39,7 +43,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   List<ReadingSession> _allSessions = [];
   List<Book> _allBooks = [];
-  int _annualGoalTarget = 24;
   int? _lastAppDataVersion;
 
   @override
@@ -47,10 +50,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     super.initState();
     _bookService = widget.bookService ?? BookService();
 
-    if (widget.initialSessions != null || widget.initialBooks != null || widget.initialAnnualGoal != null) {
+    if (widget.initialSessions != null || widget.initialBooks != null) {
       _allSessions = widget.initialSessions ?? [];
       _allBooks = widget.initialBooks ?? [];
-      _annualGoalTarget = widget.initialAnnualGoal ?? 24;
       _isLoading = false;
     } else {
       _loadStatisticsData();
@@ -67,14 +69,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     try {
       final sessions = await _bookService.getReadingSessions();
       final books = await _bookService.getBooks();
-      final currentYear = _now.year;
-      final annualGoal = await _bookService.getAnnualReadingGoal(currentYear);
 
       if (mounted) {
         setState(() {
           _allSessions = sessions;
           _allBooks = books;
-          _annualGoalTarget = annualGoal;
           _isLoading = false;
         });
       }
@@ -88,8 +87,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
-  DateTime get _now =>
-      DateTime.now().toUtc().add(const Duration(hours: 7));
+  DateTime get _now => DateTime.now().toUtc().add(const Duration(hours: 7));
 
   // Menentukan rentang tanggal berdasarkan tab periode yang dipilih
   DateTimeRange _getPeriodRange() {
@@ -152,52 +150,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return sum;
   }
 
-  // 3. Books Done: Jumlah buku yang sudah selesai dibaca di My Library
-  List<Book> _completedBooks(List<Book> books) {
-    return books
-        .where((book) => book.status.trim().toLowerCase() == 'completed')
-        .toList();
+  List<Book> _completedBooksInPeriod(List<Book> books) {
+    final range = _getPeriodRange();
+    return books.where((book) {
+      if (book.status.trim().toLowerCase() != 'completed') return false;
+      final completedAt = (book.completedAt ?? book.addedAt).toUtc().add(
+        const Duration(hours: 7),
+      );
+      return !completedAt.isBefore(range.start) &&
+          completedAt.isBefore(range.end);
+    }).toList();
   }
 
-  int _booksDoneCount(List<Book> books) => _completedBooks(books).length;
-
-  // 4. Active Streak: Jumlah hari berturut-turut membaca hingga hari ini atau kemarin
-  int get _activeStreak {
-    if (_allSessions.isEmpty) return 0;
-
-    final now = _now;
-    final today = DateTime.utc(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-
-    // Kumpulan tanggal unik membaca
-    final Set<DateTime> readDays = _allSessions
-        .where(
-          (session) =>
-              session.trackedDurationSeconds > 0 || session.pagesRead > 0,
-        )
-        .map((session) => session.readingDateInWib)
-        .toSet();
-
-    if (readDays.contains(today)) {
-      int streak = 1;
-      DateTime checkDate = today.subtract(Duration(days: 1));
-      while (readDays.contains(checkDate)) {
-        streak++;
-        checkDate = checkDate.subtract(Duration(days: 1));
-      }
-      return streak;
-    } else if (readDays.contains(yesterday)) {
-      int streak = 1;
-      DateTime checkDate = yesterday.subtract(Duration(days: 1));
-      while (readDays.contains(checkDate)) {
-        streak++;
-        checkDate = checkDate.subtract(Duration(days: 1));
-      }
-      return streak;
-    } else {
-      return 0;
-    }
-  }
+  int get _readingDaysCount => _periodSessions
+      .where(
+        (session) =>
+            session.trackedDurationSeconds > 0 || session.pagesRead > 0,
+      )
+      .map((session) => session.readingDateInWib)
+      .toSet()
+      .length;
 
   // 5. Top Genre: Kategori buku yang paling sering dibaca
   String _topGenreFor(List<Book> books) {
@@ -207,7 +179,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     for (final s in _periodSessions) {
       if (s.bookId != null && s.bookId!.isNotEmpty) {
         final book = books.where((b) => b.id == s.bookId).firstOrNull;
-        if (book != null && book.category != null && book.category!.trim().isNotEmpty) {
+        if (book != null &&
+            book.category != null &&
+            book.category!.trim().isNotEmpty) {
           final cat = book.category!.trim();
           final key = cat.toLowerCase();
           genreLabels.putIfAbsent(key, () => cat);
@@ -233,28 +207,97 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return genreLabels[topCategoryKey]!;
   }
 
-  // 6. Reading Velocity: Distribusi durasi membaca per hari dalam seminggu (M, T, W, T, F, S, S)
-  List<int> get _dailyReadingMinutes {
-    final List<int> secondsPerDay = [0, 0, 0, 0, 0, 0, 0];
-
-    for (final s in _periodSessions) {
-      final dayIndex = s.createdAtInWib.weekday - 1;
-      if (dayIndex >= 0 && dayIndex < 7) {
-        secondsPerDay[dayIndex] += s.trackedDurationSeconds;
-      }
+  List<_ReadingBucket> get _readingBuckets {
+    final sessions = _periodSessions;
+    int minutesForDate(DateTime date) {
+      final seconds = sessions
+          .where((session) => session.readingDateInWib == date)
+          .fold(0, (total, session) => total + session.trackedDurationSeconds);
+      return seconds ~/ 60;
     }
 
-    return secondsPerDay.map((seconds) => seconds ~/ 60).toList();
+    if (_selectedPeriod == 'This Week') {
+      final start = _getPeriodRange().start;
+      const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+      return List.generate(7, (index) {
+        final date = start.add(Duration(days: index));
+        return _ReadingBucket(
+          label: labels[index],
+          minutes: minutesForDate(date),
+        );
+      });
+    }
+
+    final now = _now;
+    if (_selectedPeriod == 'This Month') {
+      final firstDay = DateTime.utc(now.year, now.month, 1);
+      final daysInMonth = DateTime.utc(now.year, now.month + 1, 0).day;
+      final firstWeekOffset = firstDay.weekday - 1;
+      final bucketCount = (daysInMonth + firstWeekOffset + 6) ~/ 7;
+      final secondsPerWeek = List<int>.filled(bucketCount, 0);
+
+      for (final session in sessions) {
+        final date = session.readingDateInWib;
+        final weekIndex = (date.day + firstWeekOffset - 1) ~/ 7;
+        secondsPerWeek[weekIndex] += session.trackedDurationSeconds;
+      }
+
+      return List.generate(
+        bucketCount,
+        (index) => _ReadingBucket(
+          label: 'Mg${index + 1}',
+          minutes: secondsPerWeek[index] ~/ 60,
+        ),
+      );
+    }
+
+    const labels = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    final secondsPerMonth = List<int>.filled(12, 0);
+    for (final session in sessions) {
+      secondsPerMonth[session.readingDateInWib.month - 1] +=
+          session.trackedDurationSeconds;
+    }
+    return List.generate(
+      12,
+      (index) => _ReadingBucket(
+        label: labels[index],
+        minutes: secondsPerMonth[index] ~/ 60,
+      ),
+    );
   }
 
-  // Menemukan indeks hari dengan aktivitas membaca tertinggi
-  int get _highestDayIndex {
-    final minutes = _dailyReadingMinutes;
+  String get _bucketUnit {
+    if (_selectedPeriod == 'This Week') return 'Menit / Hari';
+    if (_selectedPeriod == 'This Month') return 'Menit / Minggu';
+    return 'Menit / Bulan';
+  }
+
+  String get _bucketTitle {
+    if (_selectedPeriod == 'This Week') return 'Bacaan per Hari';
+    if (_selectedPeriod == 'This Month') return 'Bacaan per Minggu';
+    return 'Bacaan per Bulan';
+  }
+
+  int get _highestBucketIndex {
+    final buckets = _readingBuckets;
     int maxIndex = -1;
     int maxVal = 0;
-    for (int i = 0; i < minutes.length; i++) {
-      if (minutes[i] > maxVal) {
-        maxVal = minutes[i];
+    for (int i = 0; i < buckets.length; i++) {
+      if (buckets[i].minutes > maxVal) {
+        maxVal = buckets[i].minutes;
         maxIndex = i;
       }
     }
@@ -280,7 +323,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (session == null || session.trackedDurationSeconds <= 0) {
       return 'Belum ada sesi';
     }
-    final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    final days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
     final date = session.createdAtInWib;
     final dayName = days[date.weekday - 1];
     return '$dayName, ${date.day}/${date.month}';
@@ -298,117 +349,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return '${mins}m';
   }
 
-  // Dialog untuk mengedit target membaca tahunan
-  void _showEditGoalDialog() {
-    final controller = TextEditingController(text: _annualGoalTarget.toString());
-    final currentYear = _now.year;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Edit $currentYear Reading Goal',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: kNavy,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tentukan target jumlah buku yang ingin diselesaikan tahun ini:',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.black54,
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: kNavy,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Target Buku',
-                  hintText: 'Contoh: 24',
-                  filled: true,
-                  fillColor: kLavender,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Batal',
-                style: GoogleFonts.poppins(
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kNavy,
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                final newTarget = int.tryParse(controller.text.trim());
-                if (newTarget != null && newTarget > 0) {
-                  await _bookService.setAnnualReadingGoal(currentYear, newTarget);
-                  if (!mounted) return;
-                  setState(() {
-                    _annualGoalTarget = newTarget;
-                  });
-                  if (dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Target membaca tahun $currentYear berhasil disimpan!'),
-                      backgroundColor: kNavy,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                'Simpan',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Sinkronisasi otomatis saat koleksi di AppState diperbarui
@@ -419,8 +359,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           _lastAppDataVersion = appState.dataVersion;
           if (shouldReload) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted &&
-                  _lastAppDataVersion == appState.dataVersion) {
+              if (mounted && _lastAppDataVersion == appState.dataVersion) {
                 _loadStatisticsData();
               }
             });
@@ -445,11 +384,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildBody(List<Book> books) {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: kNavy,
-        ),
-      );
+      return Center(child: CircularProgressIndicator(color: kNavy));
     }
 
     if (_errorMessage != null) {
@@ -462,16 +397,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               Icon(
                 Icons.error_outline_rounded,
                 size: 54,
-                color: Color(0xFFD45278),
+                color: Color(0xFFA65F59),
               ),
               SizedBox(height: 16),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
               ),
               SizedBox(height: 16),
               ElevatedButton.icon(
@@ -516,9 +448,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         // 5. Grafik Reading Velocity & Best Session
         _buildReadingVelocitySection(),
         SizedBox(height: 22),
-
-        // 6. Kartu Reading Goal Tahunan
-        _buildReadingGoalCard(books),
       ],
     );
   }
@@ -542,24 +471,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             SizedBox(height: 2),
             Text(
               'Pantau kebiasaan dan progres membacamu',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.black54,
-              ),
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),
             ),
           ],
         ),
         Container(
           padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: kLavender,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.insights_rounded,
-            color: kNavy,
-            size: 22,
-          ),
+          decoration: BoxDecoration(color: kLavender, shape: BoxShape.circle),
+          child: Icon(Icons.insights_rounded, color: kNavy, size: 22),
         ),
       ],
     );
@@ -618,7 +537,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // Widget Empat Kartu Statistik
+  // Statistik yang mengikuti filter periode aktif.
   Widget _buildStatisticsCards(List<Book> books) {
     return Column(
       children: [
@@ -629,7 +548,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 label: 'Reading Time',
                 value: _formattedReadingTime,
                 icon: Icons.schedule_rounded,
-                accentColor: Color(0xFF6B4585),
+                accentColor: Color(0xFF6A4D67),
                 bgColor: Color(0xFFF3EBF9),
               ),
             ),
@@ -639,7 +558,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 label: 'Pages Read',
                 value: '$_totalPagesRead',
                 icon: Icons.auto_stories_rounded,
-                accentColor: Color(0xFF2E365A),
+                accentColor: Color(0xFF38323B),
                 bgColor: Color(0xFFEDF0F7),
               ),
             ),
@@ -650,18 +569,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             Expanded(
               child: _buildMetricCard(
-                label: 'Books Done',
-                value: '${_booksDoneCount(books)}',
+                label: 'Buku Tamat',
+                value: '${_completedBooksInPeriod(books).length}',
                 icon: Icons.bookmark_added_rounded,
-                accentColor: Color(0xFFD45278),
-                bgColor: Color(0xFFFCEAEF),
+                accentColor: Color(0xFFA65F59),
+                bgColor: Color(0xFFF5E9E4),
               ),
             ),
             SizedBox(width: 12),
             Expanded(
               child: _buildMetricCard(
-                label: 'Active Streak',
-                value: '$_activeStreak days',
+                label: 'Hari Baca',
+                value: '$_readingDaysCount',
                 icon: Icons.local_fire_department_rounded,
                 accentColor: Color(0xFFE59B2C),
                 bgColor: Color(0xFFFEF6E9),
@@ -702,11 +621,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               color: bgColor,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: accentColor,
-              size: 20,
-            ),
+            child: Icon(icon, color: accentColor, size: 20),
           ),
           SizedBox(height: 12),
           Text(
@@ -750,7 +665,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
             child: Icon(
               Icons.category_rounded,
-              color: Color(0xFF6B4585),
+              color: Color(0xFF6A4D67),
               size: 18,
             ),
           ),
@@ -780,7 +695,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Color(0xFFFCEAEF),
+              color: Color(0xFFF5E9E4),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -788,7 +703,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFD45278),
+                color: Color(0xFFA65F59),
               ),
             ),
           ),
@@ -799,14 +714,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   // Widget Reading Velocity & Best Session
   Widget _buildReadingVelocitySection() {
-    final dailyMinutes = _dailyReadingMinutes;
-    final highestIndex = _highestDayIndex;
-    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    int maxMinutes = 0;
-    for (final m in dailyMinutes) {
-      if (m > maxMinutes) maxMinutes = m;
-    }
+    final buckets = _readingBuckets;
+    final highestIndex = _highestBucketIndex;
+    final maxMinutes = buckets.fold<int>(
+      0,
+      (maximum, bucket) => bucket.minutes > maximum ? bucket.minutes : maximum,
+    );
 
     return Container(
       padding: EdgeInsets.all(18),
@@ -828,7 +741,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Reading Velocity',
+                _bucketTitle,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -836,11 +749,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
               ),
               Text(
-                'Menit / Hari',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: Colors.black45,
-                ),
+                _bucketUnit,
+                style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45),
               ),
             ],
           ),
@@ -853,8 +763,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(7, (index) {
-                final minutes = dailyMinutes[index];
+              children: List.generate(buckets.length, (index) {
+                final minutes = buckets[index].minutes;
                 final isHighest = index == highestIndex && minutes > 0;
 
                 // Hitung tinggi batang proporsional (maksimal 65px)
@@ -866,60 +776,67 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 // Warna batang: Lavender untuk biasa, Kuning Pastel untuk tertinggi
                 final barColor = isHighest
                     ? Color(0xFFFAE696)
-                    : (minutes > 0 ? Color(0xFFC3A6D8) : Color(0xFFE9EAF0));
+                    : (minutes > 0 ? Color(0xFF6A4D67) : Color(0xFFE8E0D6));
 
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (isHighest)
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        margin: EdgeInsets.only(bottom: 4),
+                return Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (isHighest)
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          margin: EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFAE696),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${minutes}m',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6A4D67),
+                            ),
+                          ),
+                        )
+                      else if (minutes > 0)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '${minutes}m',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              color: Colors.black45,
+                            ),
+                          ),
+                        )
+                      else
+                        SizedBox(height: 16),
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: 300),
+                        width: 14,
+                        height: barHeight,
                         decoration: BoxDecoration(
-                          color: Color(0xFFFAE696),
-                          borderRadius: BorderRadius.circular(6),
+                          color: barColor,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(
-                          '${minutes}m',
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF6B4585),
-                          ),
-                        ),
-                      )
-                    else if (minutes > 0)
-                      Padding(
-                        padding: EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '${minutes}m',
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            color: Colors.black45,
-                          ),
-                        ),
-                      )
-                    else
-                      SizedBox(height: 16),
-                    AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      width: 22,
-                      height: barHeight,
-                      decoration: BoxDecoration(
-                        color: barColor,
-                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      dayLabels[index],
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: isHighest ? FontWeight.w700 : FontWeight.w500,
-                        color: isHighest ? kNavy : Colors.black45,
+                      SizedBox(height: 8),
+                      Text(
+                        buckets[index].label,
+                        style: GoogleFonts.poppins(
+                          fontSize: 9,
+                          fontWeight: isHighest
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isHighest ? kNavy : Colors.black45,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               }),
             ),
@@ -950,7 +867,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Best Session',
+                      'Sesi Terlama',
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         color: Colors.black54,
@@ -978,248 +895,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF6B4585),
+                    color: Color(0xFF6A4D67),
                   ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  // Widget Kartu Reading Goal
-  Widget _buildReadingGoalCard(List<Book> books) {
-    final currentYear = _now.year;
-    final completedBooks = _completedBooks(books);
-    final completed = completedBooks.length;
-    final target = _annualGoalTarget;
-    final double progress = target > 0 ? (completed / target).clamp(0.0, 1.0) : 0.0;
-    final int percentage = (progress * 100).round();
-    final bool isAchieved = completed >= target && target > 0;
-
-    return Container(
-      padding: EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Reading Goal
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.flag_rounded,
-                    color: kNavy,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '$currentYear Reading Goal',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: kNavy,
-                    ),
-                  ),
-                ],
-              ),
-              GestureDetector(
-                onTap: _showEditGoalDialog,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: kLavender,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.edit_rounded,
-                        color: kNavy,
-                        size: 13,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Edit',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: kNavy,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 14),
-
-          // Detail Target & Persentase
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '$completed of $target books completed',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-              Text(
-                '$percentage%',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: kNavy,
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 8),
-
-          // Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: Color(0xFFE9EAF0),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isAchieved ? Color(0xFF4CAF50) : Color(0xFF6B4585),
-              ),
-            ),
-          ),
-
-          if (isAchieved) ...[
-            SizedBox(height: 10),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 14),
-                  SizedBox(width: 6),
-                  Text(
-                    'Target tercapai! Kerja bagus!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2E7D32),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          SizedBox(height: 16),
-
-          // Mini Book Cover Previews
-          Text(
-            'Buku yang Selesai Dibaca',
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
-          ),
-          SizedBox(height: 10),
-
-          if (completedBooks.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Color(0xFFF9F9FB),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Color(0xFFEBE6F2),
-                  style: BorderStyle.solid,
-                ),
-              ),
-              child: Text(
-                'Belum ada buku yang selesai dibaca',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: Colors.black45,
-                ),
-              ),
-            )
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: completedBooks.take(5).map((book) {
-                  return Container(
-                    margin: EdgeInsets.only(right: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            width: 52,
-                            height: 76,
-                            color: Color(0xFFE9EAF0),
-                            child: book.coverUrl != null && book.coverUrl!.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: book.coverUrl!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (c, u) => Center(
-                                      child: Icon(Icons.menu_book_rounded, color: Colors.black26, size: 20),
-                                    ),
-                                    errorWidget: (c, u, e) => Center(
-                                      child: Icon(Icons.menu_book_rounded, color: Colors.black26, size: 20),
-                                    ),
-                                  )
-                                : Center(
-                                    child: Icon(Icons.menu_book_rounded, color: kNavy, size: 24),
-                                  ),
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        SizedBox(
-                          width: 52,
-                          child: Text(
-                            book.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
-                              color: kNavy,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
         ],
       ),
     );

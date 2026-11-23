@@ -5,11 +5,9 @@ import 'package:litly/services/achievement_service.dart';
 class AchievementProvider extends ChangeNotifier {
   final AchievementService _service = AchievementService();
 
-  Future<void> checkAndShow(BuildContext context, int userId) async {
+  Future<void> checkAndShow(int userId) async {
     if (userId <= 0) return;
-    try {
-      await _service.checkAndUnlockAchievements(userId);
-      notifyListeners();
-    } catch (_) {}
+    await _service.checkAndUnlockAchievements(userId);
+    notifyListeners();
   }
 }

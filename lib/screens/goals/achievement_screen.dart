@@ -1,16 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:litly/core/app_colors.dart';
+import 'package:litly/providers/achievement_provider.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/providers/goal_provider.dart';
+import 'package:litly/state/app_state.dart';
 import 'package:litly/widgets/goals/annual_goal_card.dart';
 import 'package:litly/widgets/goals/daily_banner_card.dart';
 import 'package:litly/widgets/goals/daily_goal_cards.dart';
 import 'package:litly/widgets/goals/edit_goals_sheet.dart';
 import 'package:litly/widgets/goals/monthly_goal_card.dart';
 
-// Halaman A: Target Membaca Harian, Bulanan, dan Tahunan (AppBar: Achievement)
+// Target harian, bulanan, dan misi baca tahunan.
 class AchievementScreen extends StatefulWidget {
   AchievementScreen({Key? key}) : super(key: key);
 
@@ -19,6 +20,9 @@ class AchievementScreen extends StatefulWidget {
 }
 
 class _AchievementScreenState extends State<AchievementScreen> {
+  AppState? _appState;
+  int _lastDataVersion = -1;
+
   final List<String> _indonesianMonths = [
     'Januari',
     'Februari',
@@ -35,12 +39,47 @@ class _AchievementScreenState extends State<AchievementScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
-      Provider.of<GoalProvider>(context, listen: false).loadGoals(userId);
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final appState = context.read<AppState>();
+    if (_appState != appState) {
+      _appState?.removeListener(_onReadingDataChanged);
+      _appState = appState..addListener(_onReadingDataChanged);
+      _lastDataVersion = appState.dataVersion;
+      _refreshUserProgress();
+    }
+  }
+
+  @override
+  void dispose() {
+    _appState?.removeListener(_onReadingDataChanged);
+    super.dispose();
+  }
+
+  void _onReadingDataChanged() {
+    final dataVersion = _appState?.dataVersion;
+    if (dataVersion == null || dataVersion == _lastDataVersion) return;
+    _lastDataVersion = dataVersion;
+    _refreshUserProgress();
+  }
+
+  Future<void> _refreshUserProgress() async {
+    if (!mounted) return;
+    final userId = context.read<AuthProvider>().user?.id ?? 0;
+    final goalProvider = context.read<GoalProvider>();
+    final achievementProvider = context.read<AchievementProvider>();
+    try {
+      await goalProvider.loadGoals(userId);
+      await achievementProvider.checkAndShow(userId);
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Progres belum dapat diperbarui: $error'),
+          backgroundColor: AppColors.errorRed,
+        ),
+      );
+    }
   }
 
   void _openEditSheet(GoalProvider goalProvider, int userId) {
@@ -62,7 +101,6 @@ class _AchievementScreenState extends State<AchievementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     AuthProvider authProvider = Provider.of<AuthProvider>(context);
     GoalProvider goalProvider = Provider.of<GoalProvider>(context);
     int userId = authProvider.user?.id ?? 0;
@@ -71,10 +109,16 @@ class _AchievementScreenState extends State<AchievementScreen> {
     String currentMonthName = _indonesianMonths[now.month - 1];
     int currentYear = now.year;
 
-    bool isMinuteMetric = goalProvider.dailyPagesGoal == 0 && goalProvider.dailyMinutesGoal > 0;
-    bool isConfigured = goalProvider.dailyPagesGoal > 0 || goalProvider.dailyMinutesGoal > 0;
-    int todayValue = isMinuteMetric ? goalProvider.todayMinutes : goalProvider.todayPages;
-    int targetValue = isMinuteMetric ? goalProvider.dailyMinutesGoal : goalProvider.dailyPagesGoal;
+    bool isMinuteMetric =
+        goalProvider.dailyPagesGoal == 0 && goalProvider.dailyMinutesGoal > 0;
+    bool isConfigured =
+        goalProvider.dailyPagesGoal > 0 || goalProvider.dailyMinutesGoal > 0;
+    int todayValue = isMinuteMetric
+        ? goalProvider.todayMinutes
+        : goalProvider.todayPages;
+    int targetValue = isMinuteMetric
+        ? goalProvider.dailyMinutesGoal
+        : goalProvider.dailyPagesGoal;
 
     String daysLeftText = goalProvider.daysLeftInMonth == 0
         ? 'Hari terakhir'
@@ -83,9 +127,8 @@ class _AchievementScreenState extends State<AchievementScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        // // DIUBAH: Judul AppBar adalah "Achievement" sesuai desain Halaman A
         title: Text(
-          'Achievement',
+          'Achievement Gaskeun!',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -94,41 +137,10 @@ class _AchievementScreenState extends State<AchievementScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
-        actions: [
-          // // ==========================================
-          // // HAPUS SEBELUM DIKUMPULKAN: Tombol Debug
-          // // ==========================================
-          if (kDebugMode)
-            IconButton(
-              icon: Icon(Icons.science_outlined),
-              tooltip: 'Debug Mock Data (18/24 Buku, 75%)',
-              onPressed: () {
-                goalProvider.setDebugMockData();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Data contoh debug aktif (18/24 buku, 75%)'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
-          // // ==========================================
-        ],
+        actions: [],
       ),
       body: Container(
-        decoration: BoxDecoration(
-          color: isDarkMode ? Theme.of(context).scaffoldBackgroundColor : null,
-          gradient: isDarkMode
-              ? null
-              : LinearGradient(
-                  colors: [
-                    AppColors.profileBgStart,
-                    AppColors.profileBgEnd,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-        ),
+        color: AppColors.kBackground,
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -258,7 +270,7 @@ class _AchievementScreenState extends State<AchievementScreen> {
                           completedBooks: goalProvider.yearCompleted,
                           targetBooks: goalProvider.annualGoal,
                           status: goalProvider.yearStatus,
-                          books: goalProvider.yearBooks,
+                          books: goalProvider.unfinishedBooks,
                           onEditTap: () => _openEditSheet(goalProvider, userId),
                         ),
                         SizedBox(height: 24),

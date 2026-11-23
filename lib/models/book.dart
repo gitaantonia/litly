@@ -16,6 +16,7 @@ class Book {
   String status;
   int currentPage;
   final DateTime addedAt;
+  DateTime? completedAt;
 
   Book({
     required this.id,
@@ -35,6 +36,7 @@ class Book {
     this.status = 'Want to Read',
     this.currentPage = 0,
     required this.addedAt,
+    this.completedAt,
   });
 
   double get progress =>
@@ -62,6 +64,7 @@ class Book {
     'status': status,
     'currentPage': currentPage,
     'addedAt': addedAt.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
   };
 
   Map<String, dynamic> toDatabaseMap() => {
@@ -82,6 +85,7 @@ class Book {
     'status': status,
     'current_page': currentPage,
     'added_at': addedAt.toIso8601String(),
+    'completed_at': completedAt?.toIso8601String(),
   };
 
   factory Book.fromDatabaseMap(Map<String, dynamic> row) => Book(
@@ -102,6 +106,9 @@ class Book {
     status: row['status'] as String? ?? 'Want to Read',
     currentPage: row['current_page'] as int? ?? 0,
     addedAt: DateTime.parse(row['added_at'] as String),
+    completedAt: row['completed_at'] == null
+        ? null
+        : DateTime.parse(row['completed_at'] as String),
   );
 
   factory Book.fromMap(Map<String, dynamic> map) => Book(
@@ -122,6 +129,9 @@ class Book {
     status: map['status'] as String? ?? 'Want to Read',
     currentPage: map['currentPage'] as int? ?? 0,
     addedAt: DateTime.parse(map['addedAt'] as String),
+    completedAt: map['completedAt'] == null
+        ? null
+        : DateTime.parse(map['completedAt'] as String),
   );
 
   factory Book.fromGoogleApi(Map<String, dynamic> item) {

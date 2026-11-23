@@ -110,7 +110,7 @@ class _BookHistoryScreenState extends State<BookHistoryScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Debug: Data contoh Infinite Country dimuat!'),
-                    backgroundColor: Color(0xFFB5294E),
+                    backgroundColor: Color(0xFFA65F59),
                   ),
                 );
               },

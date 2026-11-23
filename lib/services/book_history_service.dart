@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:litly/database/db_helper.dart';
+import 'package:litly/models/book.dart';
+import 'package:litly/models/reading_session.dart';
 import 'package:litly/models/reading_session_item.dart';
 import 'package:litly/services/book_service.dart';
 
@@ -11,6 +13,22 @@ class BookHistoryService {
   // Mengambil data satu buku berdasarkan id
   Future<Map<String, dynamic>?> getBook(int bookId) async {
     try {
+      final allBooks = await _bookService.getBooks();
+      for (final book in allBooks) {
+        if (book.id == bookId.toString()) {
+          return {
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'coverUrl': book.coverUrl,
+            'totalPages': book.totalPages,
+            'currentPage': book.currentPage,
+            'status': book.status,
+            'completedAt': book.completedAt?.toIso8601String(),
+          };
+        }
+      }
+
       Database db = await _dbHelper.database;
       List<Map<String, dynamic>> rows = await db.query(
         'books',
@@ -19,25 +37,7 @@ class BookHistoryService {
         limit: 1,
       );
 
-      // Jika belum ditemukan di DbHelper, cek di BookService
-      if (rows.isEmpty) {
-        var allBooks = await _bookService.getBooks();
-        for (var b in allBooks) {
-          if (b.id == bookId.toString()) {
-            return {
-              'id': b.id,
-              'title': b.title,
-              'author': b.author,
-              'coverUrl': b.coverUrl,
-              'totalPages': b.totalPages,
-              'currentPage': b.currentPage,
-              'status': b.status,
-              'completedAt': null,
-            };
-          }
-        }
-        return null;
-      }
+      if (rows.isEmpty) return null;
 
       Map<String, dynamic> row = rows.first;
       int total = (row['total_pages'] as num?)?.toInt() ?? 0;
@@ -80,84 +80,89 @@ class BookHistoryService {
   }
 
   // Menyimpan progres bacaan baru dan mencatat sesi ke dalam SQLite
-  Future<String?> saveProgress(int bookId, int newPage, int durationMinutes) async {
+  Future<String?> saveProgress(
+    int bookId,
+    int newPage,
+    int durationMinutes,
+  ) async {
     try {
       Database db = await _dbHelper.database;
+      final allBooks = await _bookService.getBooks();
+      Book? book;
+      for (final item in allBooks) {
+        if (item.id == bookId.toString()) {
+          book = item;
+          break;
+        }
+      }
 
-      // 1. Ambil data buku saat ini
-      List<Map<String, dynamic>> bookRows = await db.query(
+      final bookRows = await db.query(
         'books',
         where: 'id = ?',
         whereArgs: [bookId.toString()],
         limit: 1,
       );
 
-      int previousPage = 0;
-      int totalPages = 0;
-      String currentStatus = 'Want to Read';
-
-      if (bookRows.isNotEmpty) {
-        var b = bookRows.first;
-        previousPage = (b['current_page'] as num?)?.toInt() ?? 0;
-        totalPages = (b['total_pages'] as num?)?.toInt() ?? 0;
-        currentStatus = b['status'] as String? ?? 'Want to Read';
-      } else {
-        // Cek fallback di BookService jika buku terdaftar di sana
-        var allBooks = await _bookService.getBooks();
-        for (var item in allBooks) {
-          if (item.id == bookId.toString()) {
-            previousPage = item.currentPage;
-            totalPages = item.totalPages;
-            currentStatus = item.status;
-            // Salin buku ke tabel books DbHelper agar transaksi berjalan lancar
-            await db.insert('books', {
-              'id': item.id,
-              'title': item.title,
-              'author': item.author,
-              'cover_url': item.coverUrl,
-              'total_pages': item.totalPages,
-              'current_page': item.currentPage,
-              'status': item.status,
-              'added_at': DateTime.now().toIso8601String(),
-            }, conflictAlgorithm: ConflictAlgorithm.replace);
-            break;
-          }
-        }
+      if (book == null && bookRows.isNotEmpty) {
+        final row = bookRows.first;
+        book = Book(
+          id: row['id'] as String,
+          title: row['title'] as String? ?? 'Tanpa Judul',
+          author: row['author'] as String? ?? 'Penulis tidak diketahui',
+          coverUrl: row['cover_url'] as String?,
+          totalPages: (row['total_pages'] as num?)?.toInt() ?? 0,
+          currentPage: (row['current_page'] as num?)?.toInt() ?? 0,
+          status: row['status'] as String? ?? 'Want to Read',
+          addedAt:
+              DateTime.tryParse(row['added_at'] as String? ?? '') ??
+              DateTime.now(),
+          completedAt: DateTime.tryParse(row['completed_at'] as String? ?? ''),
+        );
+        await _bookService.addBook(book);
       }
 
-      String nowIso = DateTime.now().toIso8601String();
+      if (book == null) return 'Buku tidak ditemukan di koleksi.';
 
-      // 6. Jalankan seluruh operasi dalam satu transaksi database
+      final previousPage = book.currentPage;
+      final totalPages = book.totalPages;
+      final currentStatus = book.status;
+      final now = DateTime.now();
+      final nowIso = now.toIso8601String();
+      final nextStatus = totalPages > 0 && newPage >= totalPages
+          ? 'Completed'
+          : currentStatus.toLowerCase() == 'want to read' && newPage > 0
+          ? 'Currently Reading'
+          : currentStatus;
+      final completedAt = nextStatus == 'Completed'
+          ? book.completedAt?.toIso8601String() ?? nowIso
+          : null;
+
       await db.transaction((txn) async {
-        // 2. Jika newPage > previousPage: simpan satu baris di reading_sessions
+        if (bookRows.isEmpty) {
+          await txn.insert('books', {
+            'id': book!.id,
+            'title': book.title,
+            'author': book.author,
+            'cover_url': book.coverUrl,
+            'total_pages': book.totalPages,
+            'current_page': book.currentPage,
+            'status': book.status,
+            'added_at': book.addedAt.toIso8601String(),
+            'completed_at': book.completedAt?.toIso8601String(),
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+
         if (newPage > previousPage) {
-          int durationSec = durationMinutes * 60;
           await txn.insert('reading_sessions', {
             'book_id': bookId.toString(),
-            'duration_seconds': durationSec,
+            'duration_seconds': durationMinutes * 60,
             'start_page': previousPage,
             'end_page': newPage,
             'created_at': nowIso,
           });
         }
 
-        // Tentukan status buku baru
-        String nextStatus = currentStatus;
-        String? completedAt;
-
-        // 4. Kalau status buku 'Want to Read' dan newPage > 0: ubah ke 'Currently Reading'
-        if (currentStatus == 'Want to Read' && newPage > 0) {
-          nextStatus = 'Currently Reading';
-        }
-
-        // 5. Kalau newPage == total_pages: ubah status ke 'Completed' dan isi completed_at
-        if (totalPages > 0 && newPage >= totalPages) {
-          nextStatus = 'Completed';
-          completedAt = nowIso;
-        }
-
-        // 3. Update data pada tabel books
-        Map<String, dynamic> updateValues = {
+        final updateValues = <String, Object?>{
           'current_page': newPage,
           'status': nextStatus,
         };
@@ -173,12 +178,28 @@ class BookHistoryService {
         );
       });
 
-      // Sinkronkan juga ke BookService jika ada untuk AppState
-      try {
-        await _bookService.updateBookProgress(bookId.toString(), newPage - previousPage);
-      } catch (_) {}
+      if (newPage != previousPage) {
+        await _bookService.updateBookProgress(
+          bookId.toString(),
+          newPage - previousPage,
+        );
+      }
+      if (newPage > previousPage || durationMinutes > 0) {
+        final pagesRead = (newPage - previousPage).clamp(0, newPage).toInt();
+        await _bookService.addReadingSession(
+          ReadingSession(
+            id: 'progress_${bookId}_${now.microsecondsSinceEpoch}',
+            bookId: bookId.toString(),
+            bookTitle: book.title,
+            durationMinutes: durationMinutes,
+            durationSeconds: durationMinutes * 60,
+            pagesRead: pagesRead,
+            createdAt: now,
+          ),
+        );
+      }
 
-      return null; // Sukses tanpa error
+      return null;
     } catch (e) {
       return 'Gagal menyimpan progress: ${e.toString()}';
     }

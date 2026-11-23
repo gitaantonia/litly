@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,29 +12,38 @@ import 'google_books_service.dart';
 
 // Service untuk mengelola buku, sesi membaca, dan integrasi Google Books API
 class BookService {
-  BookService({GoogleBooksService? googleBooksService})
-    : _googleBooksService = googleBooksService ?? GoogleBooksService();
+  BookService({
+    GoogleBooksService? googleBooksService,
+    this.databaseName = 'litly.db',
+  }) : _googleBooksService = googleBooksService ?? GoogleBooksService();
 
   static final String _usernameKey = 'username';
   static final String _legacyBooksKey = 'reading_books';
-  static final String _databaseName = 'litly.db';
-  static final int _databaseVersion = 4;
-  static final String _dailyTargetMinutesKey = 'daily_target_minutes';
+  static final int _databaseVersion = 5;
 
   final GoogleBooksService _googleBooksService;
+  final String databaseName;
   Database? _database;
+  bool _bookColumnsVerified = false;
 
   // Inisialisasi dan pengambilan instance database SQLite
   Future<Database> get _db async {
-    if (_database != null && _database!.isOpen) return _database!;
+    if (_database != null && _database!.isOpen) {
+      if (!_bookColumnsVerified) {
+        await _ensureBookColumns(_database!);
+        _bookColumnsVerified = true;
+      }
+      return _database!;
+    }
+    _bookColumnsVerified = false;
     final factory = litlyDatabaseFactory;
     String path;
 
     if (kIsWeb) {
-      path = _databaseName;
+      path = databaseName;
     } else {
       final databasesPath = await factory.getDatabasesPath();
-      path = p.join(databasesPath, _databaseName);
+      path = p.join(databasesPath, databaseName);
     }
 
     _database = await factory.openDatabase(
@@ -61,33 +71,45 @@ class BookService {
         },
         onOpen: (db) async {
           await _createTables(db);
-          try {
-            await db.execute('ALTER TABLE books ADD COLUMN published_year TEXT');
-          } catch (_) {}
-          try {
-            await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
-          } catch (_) {}
-          try {
-            await db.execute('ALTER TABLE books ADD COLUMN language TEXT');
-          } catch (_) {}
+          await _ensureBookColumns(db);
+          _bookColumnsVerified = true;
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           await _createTables(db);
-          if (oldVersion < 2) {
-            try {
-              await db.execute('ALTER TABLE books ADD COLUMN published_year TEXT');
-              await db.execute('ALTER TABLE books ADD COLUMN category TEXT');
-            } catch (_) {}
-          }
-          if (oldVersion < 4) {
-            try {
-              await db.execute('ALTER TABLE books ADD COLUMN language TEXT');
-            } catch (_) {}
-          }
+          await _ensureBookColumns(db);
         },
       ),
     );
+    _bookColumnsVerified = true;
     return _database!;
+  }
+
+  Future<void> _ensureBookColumns(Database db) async {
+    const columns = {
+      'published_year': 'TEXT',
+      'category': 'TEXT',
+      'language': 'TEXT',
+      'completed_at': 'TEXT',
+    };
+
+    var existingColumns = await _getBookColumnNames(db);
+    for (final entry in columns.entries) {
+      if (existingColumns.contains(entry.key)) continue;
+      try {
+        await db.execute(
+          'ALTER TABLE books ADD COLUMN ${entry.key} ${entry.value}',
+        );
+        existingColumns.add(entry.key);
+      } on DatabaseException {
+        existingColumns = await _getBookColumnNames(db);
+        if (!existingColumns.contains(entry.key)) rethrow;
+      }
+    }
+  }
+
+  Future<Set<String>> _getBookColumnNames(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(books)');
+    return columns.map((column) => column['name'] as String).toSet();
   }
 
   // Membuat tabel-tabel penting jika belum ada
@@ -111,7 +133,8 @@ class BookService {
         ratings_count INTEGER,
         status TEXT NOT NULL,
         current_page INTEGER NOT NULL,
-        added_at TEXT NOT NULL
+        added_at TEXT NOT NULL,
+        completed_at TEXT
       )
     ''');
 
@@ -200,14 +223,20 @@ class BookService {
 
     if (rows.isEmpty) return null;
 
-    final currentBook = Book.fromDatabaseMap(Map<String, dynamic>.from(rows.first));
+    final currentBook = Book.fromDatabaseMap(
+      Map<String, dynamic>.from(rows.first),
+    );
     final newPage = (currentBook.currentPage + additionalPages).clamp(
       0,
       currentBook.totalPages > 0 ? currentBook.totalPages : 99999,
     );
 
     final wasCompleted = currentBook.status.trim().toLowerCase() == 'completed';
-    final newStatus = wasCompleted ||
+    final isCompleted =
+        wasCompleted ||
+        (currentBook.totalPages > 0 && newPage >= currentBook.totalPages);
+    final newStatus =
+        wasCompleted ||
             (currentBook.totalPages > 0 && newPage >= currentBook.totalPages)
         ? 'Completed'
         : 'Currently Reading';
@@ -230,6 +259,8 @@ class BookService {
       status: newStatus,
       currentPage: newPage,
       addedAt: currentBook.addedAt,
+      completedAt:
+          currentBook.completedAt ?? (isCompleted ? DateTime.now() : null),
     );
 
     await updateBook(updatedBook);
@@ -286,36 +317,24 @@ class BookService {
     return totalPages;
   }
 
-  // --- PENGELOLAAN TARGET MEMBACA HARIAN (DAILY GOAL) ---
-  Future<int> getDailyTargetMinutes() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_dailyTargetMinutesKey) ?? 30; // Default 30 menit
-  }
-
-  Future<void> setDailyTargetMinutes(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_dailyTargetMinutesKey, minutes);
-  }
-
-  // --- PENGELOLAAN TARGET MEMBACA TAHUNAN (ANNUAL READING GOAL) ---
-  Future<int> getAnnualReadingGoal(int year) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('annual_reading_goal_$year') ?? 24; // Default 24 buku
-  }
-
-  Future<void> setAnnualReadingGoal(int year, int target) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('annual_reading_goal_$year', target);
-  }
-
   // Mengambil riwayat sesi membaca dalam periode tertentu
-  Future<List<ReadingSession>> getReadingSessionsForPeriod(DateTime start, DateTime end) async {
+  Future<List<ReadingSession>> getReadingSessionsForPeriod(
+    DateTime start,
+    DateTime end,
+  ) async {
     final sessions = await getReadingSessions();
     return sessions.where((s) {
       final createdAt = s.createdAtInWib;
       return (createdAt.isAfter(start) || createdAt.isAtSameMomentAs(start)) &&
           (createdAt.isBefore(end) || createdAt.isAtSameMomentAs(end));
     }).toList();
+  }
+
+  Future<void> close() async {
+    final database = _database;
+    _database = null;
+    _bookColumnsVerified = false;
+    if (database != null && database.isOpen) await database.close();
   }
 
   // --- GOOGLE BOOKS SERVICE ---

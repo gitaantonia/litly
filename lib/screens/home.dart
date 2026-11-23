@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/colors.dart';
+import '../constants/reading_colors.dart';
 import '../models/book.dart';
-import '../services/book_service.dart';
 import '../services/focus_timer_service.dart';
 import '../services/session_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/goal_provider.dart';
 import '../state/app_state.dart';
+import '../widgets/litly_mascot.dart';
 import 'book_detail.dart';
 import 'discover.dart';
 import 'focus_timer.dart';
@@ -54,12 +56,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       HomeTab(
-        username: _activeUserName.isNotEmpty ? _activeUserName : widget.username,
+        username: _activeUserName.isNotEmpty
+            ? _activeUserName
+            : widget.username,
       ),
       DiscoverScreen(),
       LibraryScreen(onDiscover: () => _selectTab(1)),
       StatisticsScreen(),
-      ProfileScreen(username: _activeUserName.isNotEmpty ? _activeUserName : widget.username),
+      ProfileScreen(
+        username: _activeUserName.isNotEmpty
+            ? _activeUserName
+            : widget.username,
+      ),
     ];
 
     return Scaffold(
@@ -71,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectTab,
         backgroundColor: Colors.white,
-        indicatorColor: Color(0xFFE9EAF0),
+        indicatorColor: kLightPurple,
         elevation: 8,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
@@ -110,10 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class HomeTab extends StatefulWidget {
   final String username;
 
-  HomeTab({
-    super.key,
-    required this.username,
-  });
+  HomeTab({super.key, required this.username});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -121,11 +126,6 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   final FocusTimerService _timerService = FocusTimerService();
-  final BookService _bookService = BookService();
-
-  int _todayMinutes = 0;
-  int _todayPages = 0;
-  int _dailyTargetMinutes = 30;
 
   @override
   void initState() {
@@ -148,23 +148,8 @@ class _HomeTabState extends State<HomeTab> {
 
   // Mengambil progres membaca harian dan target dari SQLite (PB-023)
   Future<void> _loadDailyGoalData() async {
-    try {
-      final minutes = await _bookService.getTodayReadingMinutes();
-      final pages = await _bookService.getTodayPagesRead();
-      final target = await _bookService.getDailyTargetMinutes();
-
-      if (mounted) {
-        setState(() {
-          _todayMinutes = minutes;
-          _todayPages = pages;
-          _dailyTargetMinutes = target;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    }
+    final userId = context.read<AuthProvider>().user?.id ?? 0;
+    await context.read<GoalProvider>().loadGoals(userId);
   }
 
   // Sapaan dinamis berdasarkan waktu saat ini
@@ -198,8 +183,8 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, state, _) {
+    return Consumer2<AppState, GoalProvider>(
+      builder: (context, state, goals, _) {
         final books = state.books;
 
         // Mencari buku yang memiliki status "Currently Reading" atau "Sedang Dibaca" di My Library
@@ -223,10 +208,25 @@ class _HomeTabState extends State<HomeTab> {
           }
         }
 
-        final double goalProgress = _dailyTargetMinutes > 0
-            ? (_todayMinutes / _dailyTargetMinutes).clamp(0.0, 1.0)
+        final usesPageTarget = goals.dailyPagesGoal > 0;
+        final targetValue = usesPageTarget
+            ? goals.dailyPagesGoal
+            : goals.dailyMinutesGoal;
+        final todayValue = usesPageTarget
+            ? goals.todayPages
+            : goals.todayMinutes;
+        final targetUnit = usesPageTarget ? 'hal' : 'menit';
+        final goalProgress = targetValue > 0
+            ? (todayValue / targetValue).clamp(0.0, 1.0).toDouble()
             : 0.0;
-        final bool isGoalAchieved = _todayMinutes >= _dailyTargetMinutes && _dailyTargetMinutes > 0;
+        final isGoalAchieved = goals.isDailyReached;
+        final mascotMood = isGoalAchieved
+            ? LitlyMood.cheering
+            : goalProgress >= 0.75
+            ? LitlyMood.amazed
+            : todayValue > 0
+            ? LitlyMood.pointing
+            : LitlyMood.greeting;
 
         return RefreshIndicator(
           color: kPurple,
@@ -246,7 +246,7 @@ class _HomeTabState extends State<HomeTab> {
                   children: [
                     Row(
                       children: [
-                        Image.asset('assets/images/liti_mascot.png', width: 42),
+                        LitlyMascot(mood: mascotMood, width: 64, height: 82),
                         SizedBox(width: 10),
                         Text(
                           'Litly',
@@ -261,7 +261,10 @@ class _HomeTabState extends State<HomeTab> {
                     // Badge status sesi fokus jika sedang berjalan
                     if (_timerService.isRunning)
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: kSoftPink,
                           borderRadius: BorderRadius.circular(20),
@@ -296,7 +299,7 @@ class _HomeTabState extends State<HomeTab> {
 
                 // Greeting teks berdasarkan waktu dan nama pengguna yang login
                 Text(
-                  '${_getGreeting()}, ${widget.username}! 👋',
+                  '${_getGreeting()}, ${widget.username}!',
                   style: GoogleFonts.poppins(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -337,14 +340,6 @@ class _HomeTabState extends State<HomeTab> {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                padding: EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFFFF9E6),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text('🎯', style: TextStyle(fontSize: 18)),
-                              ),
                               SizedBox(width: 10),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,19 +365,28 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                           // Label Progres Menit
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: isGoalAchieved ? Colors.green[50] : kLavender,
+                              color: isGoalAchieved
+                                  ? Colors.green[50]
+                                  : kLavender,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               isGoalAchieved
                                   ? 'Tercapai! 🎉'
-                                  : '$_todayMinutes / $_dailyTargetMinutes Menit',
+                                  : targetValue > 0
+                                  ? '$todayValue / $targetValue $targetUnit'
+                                  : 'Atur targetmu',
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: isGoalAchieved ? Colors.green[700] : kPurple,
+                                color: isGoalAchieved
+                                    ? Colors.green[700]
+                                    : kPurple,
                               ),
                             ),
                           ),
@@ -413,7 +417,7 @@ class _HomeTabState extends State<HomeTab> {
                             ),
                           ),
                           Text(
-                            '$_todayPages hal dibaca hari ini',
+                            '${goals.todayPages} hal · ${goals.todayMinutes} mnt hari ini',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: Colors.black54,
@@ -421,6 +425,17 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                         ],
                       ),
+                      if (goals.dailyPagesGoal > 0 &&
+                          goals.dailyMinutesGoal > 0) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          'Waktu: ${goals.todayMinutes} / ${goals.dailyMinutesGoal} menit',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -476,8 +491,8 @@ class _HomeTabState extends State<HomeTab> {
                                 _timerService.isRunning
                                     ? 'Fokus membaca • Sisa ${_timerService.formattedTime}'
                                     : (_timerService.isPaused
-                                        ? 'Sesi dijeda • ${_timerService.formattedTime}'
-                                        : 'Siap mulai sesi • ${_timerService.formattedTime}'),
+                                          ? 'Sesi dijeda • ${_timerService.formattedTime}'
+                                          : 'Siap mulai sesi • ${_timerService.formattedTime}'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.8),
@@ -536,7 +551,8 @@ class _HomeTabState extends State<HomeTab> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BookDetailScreen(book: currentlyReadingBook!),
+                          builder: (context) =>
+                              BookDetailScreen(book: currentlyReadingBook!),
                         ),
                       );
                     },
@@ -548,8 +564,7 @@ class _HomeTabState extends State<HomeTab> {
                 SizedBox(height: 20),
 
                 // 5. Ringkasan Statistik Buku (Buku Dibaca vs Selesai)
-                if (books.isNotEmpty)
-                  _StatsRow(books: books),
+                if (books.isNotEmpty) _StatsRow(books: books),
               ],
             ),
           ),
@@ -564,10 +579,7 @@ class _CurrentlyReadingCard extends StatelessWidget {
   final Book book;
   final VoidCallback onContinue;
 
-  _CurrentlyReadingCard({
-    required this.book,
-    required this.onContinue,
-  });
+  _CurrentlyReadingCard({required this.book, required this.onContinue});
 
   @override
   Widget build(BuildContext context) {
@@ -623,7 +635,10 @@ class _CurrentlyReadingCard extends StatelessWidget {
                     // Kategori chip
                     if (book.category != null && book.category!.isNotEmpty)
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         margin: EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
                           color: kSoftPink,
@@ -665,7 +680,11 @@ class _CurrentlyReadingCard extends StatelessWidget {
                     if (book.rating != null)
                       Row(
                         children: [
-                          Icon(Icons.star_rounded, color: Color(0xFFFDB022), size: 16),
+                          Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFFDB022),
+                            size: 16,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             book.rating!.toStringAsFixed(1),
@@ -722,9 +741,8 @@ class _CurrentlyReadingCard extends StatelessWidget {
             height: 42,
             child: ElevatedButton.icon(
               onPressed: onContinue,
-              icon: Icon(Icons.menu_book_rounded, color: Colors.white, size: 18),
               label: Text(
-                'Continue Reading',
+                'Detail',
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -772,10 +790,7 @@ class _EmptyReadingState extends StatelessWidget {
         children: [
           Container(
             padding: EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: kLavender,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: kLavender, shape: BoxShape.circle),
             child: Icon(Icons.auto_stories_outlined, size: 36, color: kPurple),
           ),
           SizedBox(height: 14),
@@ -792,10 +807,7 @@ class _EmptyReadingState extends StatelessWidget {
           Text(
             'Tambahkan buku dari My Library untuk mulai membaca',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.black45,
-            ),
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45),
           ),
         ],
       ),
@@ -831,11 +843,7 @@ class _StatChip extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  _StatChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  _StatChip({required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
