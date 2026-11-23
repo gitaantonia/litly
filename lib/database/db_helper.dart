@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -45,8 +43,9 @@ class DbHelper {
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
-            List<Map<String, dynamic>> columns =
-                await db.rawQuery('PRAGMA table_info(users)');
+            List<Map<String, dynamic>> columns = await db.rawQuery(
+              'PRAGMA table_info(users)',
+            );
             bool hasAvatar = false;
             for (var col in columns) {
               if (col['name'] == 'avatar') {
@@ -132,10 +131,14 @@ class DbHelper {
 
     // Pastikan kolom start_page dan end_page ada pada reading_sessions jika tabel sudah ada sebelumnya
     try {
-      await db.execute('ALTER TABLE reading_sessions ADD COLUMN start_page INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE reading_sessions ADD COLUMN start_page INTEGER DEFAULT 0',
+      );
     } catch (_) {}
     try {
-      await db.execute('ALTER TABLE reading_sessions ADD COLUMN end_page INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE reading_sessions ADD COLUMN end_page INTEGER DEFAULT 0',
+      );
     } catch (_) {}
   }
 
@@ -150,53 +153,63 @@ class DbHelper {
       )
     ''');
 
-    // Masukkan master lencana bawaan jika masih kosong
-    List<Map<String, dynamic>> count =
-        await db.rawQuery('SELECT COUNT(*) as count FROM achievements');
-    int total = (count.first['count'] as num?)?.toInt() ?? 0;
-
-    if (total == 0) {
-      await db.insert('achievements', {
+    final achievements = [
+      {
         'id': 'first_step',
-        'title': 'First Step',
-        'description': 'Selamat bergabung dan mulai membaca di Litly!',
+        'title': 'Gaskeun Baca!',
+        'description': 'Mencatat sesi baca pertamamu.',
         'icon_name': 'explore',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-      await db.insert('achievements', {
+      },
+      {
         'id': 'page_turner',
-        'title': 'Page Turner',
-        'description': 'Membaca lebih dari 20 halaman dalam satu hari.',
+        'title': 'Pejuang Halaman',
+        'description': 'Mencapai target halaman harian (atau 20 halaman).',
         'icon_name': 'auto_stories',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-      await db.insert('achievements', {
+      },
+      {
         'id': 'goal_crusher',
-        'title': 'Goal Crusher',
-        'description': 'Mencapai target membaca harian selama beberapa hari.',
+        'title': 'Target? Libas!',
+        'description': 'Target harian tercapai 3 hari berturut-turut.',
         'icon_name': 'emoji_events',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-      await db.insert('achievements', {
+      },
+      {
         'id': 'bookworm',
-        'title': 'Bookworm',
-        'description': 'Menyelesaikan buku pertama kamu di Litly.',
+        'title': 'Tamatin, Bestie!',
+        'description': 'Menyelesaikan buku pertamamu.',
         'icon_name': 'menu_book',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-      await db.insert('achievements', {
+      },
+      {
         'id': 'night_owl',
-        'title': 'Night Owl',
-        'description': 'Membaca buku dengan tenang di malam hari.',
+        'title': 'Kuntil Baca',
+        'description': 'Mencatat sesi baca mulai pukul 20.00 sampai 03.59.',
         'icon_name': 'nightlight_round',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-      await db.insert('achievements', {
+      },
+      {
         'id': 'marathon_reader',
-        'title': 'Marathon Reader',
-        'description': 'Menyelesaikan sesi membaca lebih dari 60 menit.',
+        'title': 'Maraton Tipis-Tipis',
+        'description': 'Membaca minimal 60 menit dalam satu sesi.',
         'icon_name': 'timer',
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      },
+      {
+        'id': 'monthly_champ',
+        'title': 'Jagoan Bulanan',
+        'description': 'Mencapai target buku bulananmu.',
+        'icon_name': 'emoji_events',
+      },
+      {
+        'id': 'year_champ',
+        'title': 'Legenda Baca',
+        'description': 'Mencapai target buku tahunanmu.',
+        'icon_name': 'emoji_events',
+      },
+    ];
+
+    for (final achievement in achievements) {
+      await db.insert(
+        'achievements',
+        achievement,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
   }
 
@@ -210,13 +223,6 @@ class DbHelper {
         PRIMARY KEY (user_id, achievement_id)
       )
     ''');
-  }
-
-  // Fungsi untuk hashing password menggunakan SHA-256
-  static String hashPassword(String password) {
-    var bytes = utf8.encode(password);
-    var digest = sha256.convert(bytes);
-    return digest.toString();
   }
 
   // Cek apakah email sudah terdaftar di database
@@ -266,9 +272,7 @@ class DbHelper {
     }
 
     UserModel user = UserModel.fromMap(result.first);
-    String inputHashedPassword = hashPassword(rawPassword);
-
-    if (user.password != inputHashedPassword) {
+    if (user.password != rawPassword) {
       return {
         'status': 'wrong_password',
         'message': 'Kata sandi salah',
@@ -308,11 +312,11 @@ class DbHelper {
   }
 
   // Update password pengguna
-  Future<int> updatePassword(String email, String newPasswordHash) async {
+  Future<int> updatePassword(String email, String newPassword) async {
     Database db = await database;
     return await db.update(
       'users',
-      {'password': newPasswordHash},
+      {'password': newPassword},
       where: 'LOWER(email) = ?',
       whereArgs: [email.trim().toLowerCase()],
     );
@@ -323,10 +327,7 @@ class DbHelper {
     Database db = await database;
     return await db.update(
       'users',
-      {
-        'name': name,
-        'avatar': avatar,
-      },
+      {'name': name, 'avatar': avatar},
       where: 'id = ?',
       whereArgs: [userId],
     );

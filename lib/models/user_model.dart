@@ -3,7 +3,7 @@ class UserModel {
   int? id;
   String name;
   String email;
-  String password; // Disimpan dalam bentuk hash
+  String password;
   String securityPin; // PIN keamanan untuk Forgot Password
   String? createdAt;
   String? avatar; // // BARU: path avatar yang dipilih pengguna

@@ -15,16 +15,17 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   // Warna tema sesuai referensi desain
-  final Color primaryPurple = Color(0xFF8550A0);
-  final Color lavenderBg = Color(0xFFF7F0FC);
-  final Color errorRed = Color(0xFFD32F2F);
+  final Color primaryPurple = Color(0xFF6A4D67);
+  final Color lavenderBg = Color(0xFFFAF8F3);
+  final Color errorRed = Color(0xFFA65F59);
 
   // Controller input form
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   // Pesan error real-time untuk setiap field
   String? nameError;
@@ -175,15 +176,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // 2. Hash password sebelum disimpan ke database
-      String hashedPassword = DbHelper.hashPassword(passwordController.text);
-
       // 3. Simpan data user ke SQLite menggunakan insertUser
-      String pin = pinController.text.trim().isEmpty ? '123456' : pinController.text.trim();
+      String pin = pinController.text.trim().isEmpty
+          ? '123456'
+          : pinController.text.trim();
       UserModel newUser = UserModel(
         name: nameController.text.trim(),
         email: email,
-        password: hashedPassword,
+        password: passwordController.text,
         securityPin: pin,
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -192,10 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       newUser.id = newUserId;
 
       // 4. Simpan session login otomatis ke SharedPreferences
-      await SessionService.saveUserSession(
-        user: newUser,
-        rememberMe: true,
-      );
+      await SessionService.saveUserSession(user: newUser, rememberMe: true);
 
       if (!mounted) return;
 
@@ -214,9 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => HomeScreen(
-            username: newUser.name,
-          ),
+          builder: (context) => HomeScreen(username: newUser.name),
         ),
         (route) => false,
       );
@@ -244,7 +239,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // // DIUBAH: menyesuaikan dark mode
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor, // // DIUBAH: menyesuaikan dark mode
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
@@ -317,10 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       nameError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -363,10 +356,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       emailError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -392,10 +382,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       fontSize: 14,
                       color: Colors.grey[400],
                     ),
-                    prefixIcon: Icon(
-                      Icons.pin_outlined,
-                      color: primaryPurple,
-                    ),
+                    prefixIcon: Icon(Icons.pin_outlined, color: primaryPurple),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 20,
@@ -411,10 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       pinError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -470,10 +454,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       passwordError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -529,10 +510,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       confirmPasswordError!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: errorRed,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 12, color: errorRed),
                     ),
                   ),
                 ),
@@ -549,7 +527,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryPurple,
-                    disabledBackgroundColor: primaryPurple.withValues(alpha: 0.45),
+                    disabledBackgroundColor: primaryPurple.withValues(
+                      alpha: 0.45,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),

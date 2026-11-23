@@ -12,15 +12,16 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // Warna tema sesuai referensi Litly
-  final Color primaryPurple = Color(0xFF8550A0);
-  final Color lavenderBg = Color(0xFFF7F0FC);
-  final Color errorRed = Color(0xFFD32F2F);
+  final Color primaryPurple = Color(0xFF6A4D67);
+  final Color lavenderBg = Color(0xFFFAF8F3);
+  final Color errorRed = Color(0xFFA65F59);
 
   // Controller input form
   final TextEditingController emailController = TextEditingController();
   final TextEditingController pinController = TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   // Pesan error real-time
   String? emailError;
@@ -222,8 +223,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       DbHelper db = DbHelper();
-      String newHash = DbHelper.hashPassword(newPasswordController.text);
-      int result = await db.updatePassword(emailController.text.trim(), newHash);
+      int result = await db.updatePassword(
+        emailController.text.trim(),
+        newPasswordController.text,
+      );
 
       if (!mounted) return;
 
@@ -451,7 +454,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryPurple,
-                      disabledBackgroundColor: primaryPurple.withValues(alpha: 0.45),
+                      disabledBackgroundColor: primaryPurple.withValues(
+                        alpha: 0.45,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -492,7 +497,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_rounded, color: Colors.green[700]),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.green[700],
+                      ),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -661,7 +669,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryPurple,
-                      disabledBackgroundColor: primaryPurple.withValues(alpha: 0.45),
+                      disabledBackgroundColor: primaryPurple.withValues(
+                        alpha: 0.45,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),

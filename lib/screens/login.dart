@@ -17,9 +17,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // Warna tema sesuai referensi desain
-  final Color primaryPurple = Color(0xFF8550A0);
-  final Color lavenderBg = Color(0xFFF7F0FC);
-  final Color errorRed = Color(0xFFD32F2F);
+  final Color primaryPurple = Color(0xFF6A4D67);
+  final Color lavenderBg = Color(0xFFFAF8F3);
+  final Color errorRed = Color(0xFFA65F59);
 
   // Controller input form
   final TextEditingController emailController = TextEditingController();
@@ -171,7 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // // DIUBAH: menyesuaikan dark mode
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor, // // DIUBAH: menyesuaikan dark mode
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
