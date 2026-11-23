@@ -25,9 +25,7 @@ class NotificationService {
     timezone_data.initializeTimeZones();
     timezone.setLocalLocation(timezone.getLocation('Asia/Jakarta'));
 
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings('ic_stat_litly');
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -183,6 +181,8 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       category: AndroidNotificationCategory.reminder,
+      icon: 'ic_stat_litly',
+      largeIcon: DrawableResourceAndroidBitmap('litly_logo'),
     ),
     iOS: DarwinNotificationDetails(
       presentAlert: true,
