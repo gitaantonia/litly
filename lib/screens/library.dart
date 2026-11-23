@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/book.dart';
 import '../state/app_state.dart';
 import '../widgets/book_ui.dart';
+import '../widgets/litly_mascot.dart';
 import 'book_detail.dart';
 
 class LibraryScreen extends StatelessWidget {
@@ -31,15 +32,18 @@ class LibraryScreen extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 25,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF17162D),
+                          color: const Color(0xFF38323B),
                         ),
                       ),
                     ),
-                    Image.asset(
-                      'assets/images/liti_mascot.png',
-                      width: 76,
-                      height: 76,
-                      fit: BoxFit.contain,
+                    LitlyMascot(
+                      mood: state.error != null
+                          ? LitlyMood.frustrated
+                          : state.books.isEmpty
+                          ? LitlyMood.greeting
+                          : LitlyMood.pointing,
+                      width: 108,
+                      height: 120,
                     ),
                   ],
                 ),
@@ -111,7 +115,7 @@ class LibraryScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF17162D),
+                  color: const Color(0xFF38323B),
                 ),
               ),
               Text(
@@ -204,7 +208,7 @@ class LibraryScreen extends StatelessWidget {
                             '${book.progressText} completed',
                             style: GoogleFonts.poppins(
                               fontSize: 10,
-                              color: const Color(0xFF777787),
+                              color: const Color(0xFF746D72),
                             ),
                           ),
                         ],

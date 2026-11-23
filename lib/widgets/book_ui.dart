@@ -5,7 +5,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../models/book.dart';
 
-const navy = Color(0xFF2E365A);
+const navy = Color(0xFF38323B);
 
 class BookCover extends StatelessWidget {
   const BookCover({super.key, required this.url, this.width = 100});
@@ -39,7 +39,7 @@ class _CoverPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFE9EAF0),
+      color: const Color(0xFFE8E0D6),
       alignment: Alignment.center,
       child: const Icon(Icons.menu_book_rounded, color: navy, size: 32),
     );

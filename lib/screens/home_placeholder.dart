@@ -20,8 +20,8 @@ class HomeScreenPlaceholder extends StatefulWidget {
 }
 
 class _HomeScreenPlaceholderState extends State<HomeScreenPlaceholder> {
-  Color primaryPurple = Color(0xFF8550A0);
-  Color lavenderBg = Color(0xFFF7F0FC);
+  Color primaryPurple = Color(0xFF6A4D67);
+  Color lavenderBg = Color(0xFFFAF8F3);
 
   // Fungsi logout akun
   void _logout() async {
@@ -172,7 +172,7 @@ class _HomeScreenPlaceholderState extends State<HomeScreenPlaceholder> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF2E365A),
+                    backgroundColor: Color(0xFF38323B),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
