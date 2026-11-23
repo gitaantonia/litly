@@ -5,16 +5,16 @@ import 'package:litly/services/notification_service.dart';
 // Provider untuk pengaturan pengingat membaca dan streak saver
 class SettingsProvider extends ChangeNotifier {
   // Konstanta jam streak saver (mudah diubah di satu tempat)
-  static final int streakSaverHour = 22;
-  static final int streakSaverMinute = 0;
+  static const int streakSaverHour = NotificationService.streakSaverHour;
+  static const int streakSaverMinute = NotificationService.streakSaverMinute;
 
   bool _dailyReminderEnabled = true;
   int _reminderHour = 20;
   int _reminderMinute = 30;
-  List<String> _reminderDays = ['1', '2', '3', '4', '5']; // Senin - Jumat
+  List<String> _reminderDays = ['1', '2', '3', '4', '5', '6', '7'];
   bool _streakSaverEnabled = true;
 
-  final NotificationService _notificationService = NotificationService();
+  final NotificationService _notificationService = NotificationService.instance;
 
   bool get dailyReminderEnabled => _dailyReminderEnabled;
   int get reminderHour => _reminderHour;
@@ -26,49 +26,30 @@ class SettingsProvider extends ChangeNotifier {
     loadSettings();
   }
 
-  // Muat preferensi dari SharedPreferences
+  // Muat pengaturan pengingat dari SharedPreferences
   Future<void> loadSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     _dailyReminderEnabled = prefs.getBool('daily_reminder_enabled') ?? true;
     _reminderHour = prefs.getInt('reminder_hour') ?? 20;
     _reminderMinute = prefs.getInt('reminder_minute') ?? 30;
-    _reminderDays = prefs.getStringList('reminder_days') ?? ['1', '2', '3', '4', '5'];
+    _reminderDays =
+        prefs.getStringList('reminder_days') ??
+        ['1', '2', '3', '4', '5', '6', '7'];
     _streakSaverEnabled = prefs.getBool('streak_saver_enabled') ?? true;
 
     notifyListeners();
   }
 
-  // Toggle status daily reading alarm
-  Future<void> setDailyReminderEnabled(bool enabled) async {
+  void setDailyReminderEnabled(bool enabled) {
     _dailyReminderEnabled = enabled;
     notifyListeners();
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('daily_reminder_enabled', enabled);
-
-    if (enabled) {
-      List<int> days = _reminderDays.map((day) => int.parse(day)).toList();
-      await _notificationService.scheduleDailyReminder(_reminderHour, _reminderMinute, days);
-    } else {
-      await _notificationService.cancelDailyReminder();
-    }
   }
 
-  // Ubah jam pengingat harian
-  Future<void> setReminderTime(int hour, int minute) async {
+  void setReminderTime(int hour, int minute) {
     _reminderHour = hour;
     _reminderMinute = minute;
     notifyListeners();
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('reminder_hour', hour);
-    await prefs.setInt('reminder_minute', minute);
-
-    if (_dailyReminderEnabled) {
-      List<int> days = _reminderDays.map((day) => int.parse(day)).toList();
-      await _notificationService.scheduleDailyReminder(hour, minute, days);
-    }
   }
 
   // Toggle pilihan hari (M T W T F S S). Mengembalikan false jika mencoba mematikan hari terakhir.
@@ -89,29 +70,21 @@ class SettingsProvider extends ChangeNotifier {
     _reminderDays = updatedDays;
     notifyListeners();
 
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('reminder_days', _reminderDays);
-
-    if (_dailyReminderEnabled) {
-      List<int> days = _reminderDays.map((d) => int.parse(d)).toList();
-      await _notificationService.scheduleDailyReminder(_reminderHour, _reminderMinute, days);
-    }
-
     return true;
   }
 
-  // Toggle status streak saver alert
-  Future<void> setStreakSaverEnabled(bool enabled) async {
+  void setStreakSaverEnabled(bool enabled) {
     _streakSaverEnabled = enabled;
     notifyListeners();
+  }
 
+  Future<void> saveSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('streak_saver_enabled', enabled);
-
-    if (enabled) {
-      await _notificationService.scheduleStreakSaver(streakSaverHour);
-    } else {
-      await _notificationService.cancelStreakSaver();
-    }
+    await prefs.setBool('daily_reminder_enabled', _dailyReminderEnabled);
+    await prefs.setInt('reminder_hour', _reminderHour);
+    await prefs.setInt('reminder_minute', _reminderMinute);
+    await prefs.setStringList('reminder_days', _reminderDays);
+    await prefs.setBool('streak_saver_enabled', _streakSaverEnabled);
+    await _notificationService.syncFromSettings(requestPermissions: true);
   }
 }

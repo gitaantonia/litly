@@ -7,7 +7,6 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
-  crypto: ^3.0.8
   flutter:
     sdk: flutter
   google_fonts: ^6.2.1 # untuk fonts poppins
@@ -23,6 +22,8 @@ dependencies:
   sqflite_common_ffi_web: ^1.2.2
   image_picker: ^1.1.2
   path_provider: ^2.1.5
+  flutter_local_notifications: 19.0.0
+  timezone: 0.10.0
 
 dev_dependencies:
   flutter_test:
@@ -33,4 +34,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/mascots/
     - assets/avatars/

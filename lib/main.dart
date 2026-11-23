@@ -8,19 +8,21 @@ import 'package:litly/providers/book_history_provider.dart'; // // BARU: BookHis
 import 'package:litly/providers/goal_provider.dart';
 import 'package:litly/providers/profile_provider.dart';
 import 'package:litly/providers/settings_provider.dart';
-import 'package:litly/providers/theme_provider.dart';
 import 'package:litly/screens/goals/achievement_screen.dart'; // // DIUBAH: Halaman A (Achievement)
 import 'package:litly/screens/history/book_history_screen.dart'; // // BARU: BookHistoryScreen
 import 'package:litly/screens/level/level_screen.dart'; // // DIUBAH: Halaman B (Level)
 import 'package:litly/screens/login.dart';
 import 'package:litly/screens/profile/edit_profile_screen.dart';
+import 'package:litly/screens/routine_screen.dart';
 import 'package:litly/screens/splash_screens.dart';
 import 'package:litly/services/book_service.dart';
+import 'package:litly/services/notification_service.dart';
 import 'package:litly/state/app_state.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   initializeDatabaseFactory();
+  await NotificationService.instance.initialize();
   runApp(MyApp());
 }
 
@@ -34,21 +36,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AppState(BookService())..loadBooks(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProfileProvider(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => SettingsProvider(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ThemeProvider(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => GoalProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => GoalProvider()),
         ChangeNotifierProvider(
           create: (_) => AchievementProvider(), // // BARU
         ),
@@ -56,25 +47,18 @@ class MyApp extends StatelessWidget {
           create: (_) => BookHistoryProvider(), // // BARU
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            home: SplashScreen(),
-            routes: {
-              '/login': (context) => LoginScreen(),
-              '/edit-profile': (context) => EditProfileScreen(),
-              // // DIUBAH: Halaman A (Target Membaca) memakai route '/achievement'
-              '/achievement': (context) => AchievementScreen(),
-              // // DIUBAH: Halaman B (Level & Lencana) memakai route '/level'
-              '/level': (context) => LevelScreen(),
-              // // BARU: Halaman Riwayat Baca & Update Progres Buku
-              '/book-history': (context) => BookHistoryScreen(),
-            },
-          );
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        themeMode: ThemeMode.light,
+        home: SplashScreen(),
+        routes: {
+          '/login': (context) => LoginScreen(),
+          '/edit-profile': (context) => EditProfileScreen(),
+          '/routine': (context) => RoutineScreen(),
+          '/achievement': (context) => AchievementScreen(),
+          '/level': (context) => LevelScreen(),
+          '/book-history': (context) => BookHistoryScreen(),
         },
       ),
     );
