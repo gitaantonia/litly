@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:litly/core/app_colors.dart';
+import 'package:litly/widgets/litly_mascot.dart';
 
 // Banner status pencapaian target membaca harian
 class DailyBannerCard extends StatelessWidget {
@@ -26,23 +27,13 @@ class DailyBannerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     String unit = isMinuteMetric ? 'menit' : 'halaman';
 
-    // Gradasi warna latar: kuning krem jika tercapai, lavender pucat jika belum tercapai
-    List<Color> gradientColors;
+    late final Color bannerColor;
     if (!isConfigured) {
-      gradientColors = [
-        Color(0xFFF7F3FC),
-        Color(0xFFEFE8F6),
-      ];
+      bannerColor = Color(0xFFF3EDF1);
     } else if (isReached) {
-      gradientColors = [
-        Color(0xFFFFF9E6),
-        Color(0xFFFFEEBA),
-      ];
+      bannerColor = Color(0xFFFFF5D9);
     } else {
-      gradientColors = [
-        Color(0xFFF3EEF8),
-        Color(0xFFEBE4F3),
-      ];
+      bannerColor = Color(0xFFF5F0E7);
     }
 
     String title;
@@ -50,33 +41,41 @@ class DailyBannerCard extends StatelessWidget {
     double progressFactor = 0.0;
 
     if (!isConfigured) {
-      title = 'Belum Ada Target Harian';
-      description = 'Atur target membacamu supaya lebih konsisten.';
+      title = 'Target harian belum diatur';
+      description = 'Pilih target yang nyaman, lalu mulai dari satu halaman.';
       progressFactor = 0.0;
     } else if (isReached) {
-      title = 'Daily Goal Achieved!';
+      title = percent > 100
+          ? 'Targetmu terlampaui!'
+          : 'Target harian tercapai!';
       String compliment = percent == 100
           ? 'Target harianmu tercapai 100%!'
           : 'Target harianmu terlampaui $percent%!';
       description =
-          'Luar biasa! Kamu membaca $todayValue dari $targetValue $unit hari ini. $compliment';
+          'Kamu membaca $todayValue dari $targetValue $unit hari ini. $compliment';
       progressFactor = 1.0;
     } else {
-      title = 'Ayo Capai Targetmu!';
-      description =
-          'Kamu sudah membaca $todayValue dari $targetValue $unit hari ini. Sedikit lagi!';
+      title = todayValue == 0 ? 'Mulai pelan-pelan' : 'Sedikit lagi!';
+      description = todayValue == 0
+          ? 'Satu halaman juga sudah jadi awal yang baik.'
+          : 'Kamu sudah membaca $todayValue dari $targetValue $unit hari ini.';
       progressFactor = (percent / 100).clamp(0.0, 1.0);
     }
+    final mascotMood = !isConfigured
+        ? LitlyMood.greeting
+        : isReached
+        ? (percent > 100 ? LitlyMood.amazed : LitlyMood.cheering)
+        : todayValue == 0
+        ? LitlyMood.pointing
+        : percent >= 75
+        ? LitlyMood.amazed
+        : LitlyMood.pointing;
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: bannerColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -92,7 +91,6 @@ class DailyBannerCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Kolom teks judul dan deskripsi
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,7 +100,7 @@ class DailyBannerCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF252A3D),
+                        color: AppColors.kNavy,
                       ),
                     ),
                     SizedBox(height: 8),
@@ -111,7 +109,7 @@ class DailyBannerCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.4,
-                        color: Color(0xFF555A6E),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     if (!isConfigured) ...[
@@ -122,8 +120,10 @@ class DailyBannerCard extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           elevation: 0,
                         ),
                         onPressed: onEditTap,
@@ -141,23 +141,7 @@ class DailyBannerCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 12),
-              // Maskot bintang litly
-              Image.asset(
-                'assets/images/litly_star.png',
-                height: 90,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 80,
-                    width: 80,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.star_rounded,
-                      size: 60,
-                      color: Color(0xFFFFB300),
-                    ),
-                  );
-                },
-              ),
+              LitlyMascot(mood: mascotMood, width: 104, height: 132),
             ],
           ),
           if (isConfigured) ...[
@@ -174,7 +158,9 @@ class DailyBannerCard extends StatelessWidget {
                   widthFactor: progressFactor,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isReached ? Color(0xFFF39C12) : AppColors.kRedMaroon,
+                      color: isReached
+                          ? Color(0xFFE1B64F)
+                          : AppColors.kRedMaroon,
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),

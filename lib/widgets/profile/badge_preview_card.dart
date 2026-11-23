@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:litly/core/app_colors.dart';
 import 'package:litly/core/badge_style.dart';
+import 'package:litly/providers/achievement_provider.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/services/achievement_service.dart';
 import 'package:litly/widgets/profile/badge_detail_sheet.dart';
@@ -18,6 +19,7 @@ class _BadgePreviewCardState extends State<BadgePreviewCard> {
   final AchievementService _achievementService = AchievementService();
   List<Map<String, dynamic>> _unlockedBadges = [];
   bool _isLoading = true;
+  AchievementProvider? _achievementProvider;
 
   @override
   void initState() {
@@ -25,10 +27,31 @@ class _BadgePreviewCardState extends State<BadgePreviewCard> {
     _loadUserBadges();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<AchievementProvider>();
+    if (_achievementProvider != provider) {
+      _achievementProvider?.removeListener(_reloadBadges);
+      _achievementProvider = provider..addListener(_reloadBadges);
+    }
+  }
+
+  @override
+  void dispose() {
+    _achievementProvider?.removeListener(_reloadBadges);
+    super.dispose();
+  }
+
+  void _reloadBadges() {
+    _loadUserBadges();
+  }
+
   Future<void> _loadUserBadges() async {
-    int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
-    List<Map<String, dynamic>> list =
-        await _achievementService.getUserUnlockedAchievements(userId, limit: 4);
+    int userId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
+    List<Map<String, dynamic>> list = await _achievementService
+        .getUserUnlockedAchievements(userId, limit: 4);
 
     if (mounted) {
       setState(() {
@@ -73,22 +96,18 @@ class _BadgePreviewCardState extends State<BadgePreviewCard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Badge Collection',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Koleksi Achievement',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               InkWell(
                 onTap: () async {
-                  // // DIUBAH: Membuka Halaman B lewat route '/level'
                   await Navigator.pushNamed(context, '/level');
                   if (mounted) {
                     _loadUserBadges();
                   }
                 },
                 child: Text(
-                  'See All',
+                  'Lihat Semua',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.kRedMaroon,
@@ -112,11 +131,8 @@ class _BadgePreviewCardState extends State<BadgePreviewCard> {
             Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'No badges unlocked yet. Start reading!',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                'Belum ada achievement. Yuk mulai baca, bestie!',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             )
           else

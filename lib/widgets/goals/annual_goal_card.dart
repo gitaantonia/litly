@@ -43,10 +43,7 @@ class AnnualGoalCard extends StatelessWidget {
           children: [
             Text(
               'Belum ada tantangan tahunan',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             SizedBox(height: 12),
             ElevatedButton(
@@ -74,7 +71,7 @@ class AnnualGoalCard extends StatelessWidget {
     }
 
     double progressFactor = (completedBooks / targetBooks).clamp(0.0, 1.0);
-    bool isOnTrack = status == 'On Track';
+    bool isOnTrack = status == 'Gas Terus!';
 
     return Container(
       width: double.infinity,
@@ -98,11 +95,8 @@ class AnnualGoalCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tantangan $currentYear',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Misi Baca $currentYear',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -124,10 +118,7 @@ class AnnualGoalCard extends StatelessWidget {
           SizedBox(height: 6),
           Text(
             '$completedBooks / $targetBooks Buku',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           SizedBox(height: 14),
 
@@ -153,6 +144,16 @@ class AnnualGoalCard extends StatelessWidget {
 
           if (books.isNotEmpty) ...[
             SizedBox(height: 18),
+            Text(
+              'BUKU YANG BELUM TAMAT',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: 10),
             SizedBox(
               height: 150,
               child: ListView.builder(
@@ -164,11 +165,17 @@ class AnnualGoalCard extends StatelessWidget {
                   return BookCoverItem(
                     title: item.title,
                     coverUrl: item.coverUrl,
-                    isCompleted: true,
-                    showPercent: false, // Tanpa pil persen untuk tahunan
+                    percent: item.percent,
+                    isCompleted: false,
                   );
                 },
               ),
+            ),
+          ] else ...[
+            SizedBox(height: 18),
+            Text(
+              'Belum ada bacaan yang belum tamat. Tambah buku baru, bestie!',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ],

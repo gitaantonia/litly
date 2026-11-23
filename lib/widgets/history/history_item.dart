@@ -97,7 +97,7 @@ class HistoryItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFB5294E),
+                  color: Color(0xFFA65F59),
                 ),
               ),
             ],

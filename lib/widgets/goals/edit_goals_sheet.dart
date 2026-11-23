@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:litly/core/app_colors.dart';
+import 'package:litly/providers/achievement_provider.dart';
 import 'package:litly/providers/goal_provider.dart';
 import 'package:litly/widgets/auth/auth_text_field.dart';
 
@@ -120,7 +121,8 @@ class _EditGoalsSheetState extends State<EditGoalsSheet> {
     int currentMonthly = int.tryParse(_monthlyBooksController.text.trim()) ?? 0;
     int currentAnnual = int.tryParse(_annualBooksController.text.trim()) ?? 0;
 
-    bool hasChanged = currentPages != widget.initialDailyPages ||
+    bool hasChanged =
+        currentPages != widget.initialDailyPages ||
         currentMinutes != widget.initialDailyMinutes ||
         currentMonthly != widget.initialMonthlyBooks ||
         currentAnnual != widget.initialAnnualBooks;
@@ -141,6 +143,7 @@ class _EditGoalsSheetState extends State<EditGoalsSheet> {
     int annual = int.tryParse(_annualBooksController.text.trim()) ?? 0;
 
     GoalProvider provider = Provider.of<GoalProvider>(context, listen: false);
+    final achievementProvider = context.read<AchievementProvider>();
     String? error = await provider.saveGoals(
       widget.userId,
       pages,
@@ -148,6 +151,15 @@ class _EditGoalsSheetState extends State<EditGoalsSheet> {
       monthly,
       annual,
     );
+    String? achievementWarning;
+    if (error == null) {
+      try {
+        await achievementProvider.checkAndShow(widget.userId);
+      } on Exception catch (exception) {
+        achievementWarning =
+            'Target tersimpan, tetapi achievement gagal diperbarui: $exception';
+      }
+    }
 
     if (!mounted) return;
 
@@ -159,16 +171,15 @@ class _EditGoalsSheetState extends State<EditGoalsSheet> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Target berhasil diperbarui'),
-          backgroundColor: Colors.green[700],
+          content: Text(achievementWarning ?? 'Target berhasil diperbarui'),
+          backgroundColor: achievementWarning == null
+              ? Colors.green[700]
+              : Colors.orange[800],
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: AppColors.errorRed,
-        ),
+        SnackBar(content: Text(error), backgroundColor: AppColors.errorRed),
       );
     }
   }
@@ -197,10 +208,7 @@ class _EditGoalsSheetState extends State<EditGoalsSheet> {
               children: [
                 Text(
                   'Sesuaikan Target',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton(
                   onPressed: () {

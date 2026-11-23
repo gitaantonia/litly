@@ -15,27 +15,27 @@ class AchievementEntryCard extends StatelessWidget {
     bool hasAnnual = goal.annualGoal > 0;
 
     if (!hasDailyPages && !hasDailyMinutes && !hasMonthly && !hasAnnual) {
-      return 'Set your daily and monthly reading goals';
+      return 'Atur targetmu, lalu gas baca!';
     }
 
     List<String> parts = [];
 
     // Bagian harian
     if (hasDailyPages) {
-      parts.add('Today: ${goal.todayPages}/${goal.dailyPagesGoal} pages');
+      parts.add('Hari ini ${goal.todayPages}/${goal.dailyPagesGoal} halaman');
     } else if (hasDailyMinutes) {
-      parts.add('Today: ${goal.todayMinutes}/${goal.dailyMinutesGoal} mins');
+      parts.add('Hari ini ${goal.todayMinutes}/${goal.dailyMinutesGoal} menit');
     }
 
     // Bagian bulanan
     if (hasMonthly) {
-      parts.add('${goal.monthCompleted}/${goal.monthlyGoal} books this month');
+      parts.add('${goal.monthCompleted}/${goal.monthlyGoal} buku bulan ini');
     } else if (hasAnnual && parts.isEmpty) {
-      parts.add('${goal.yearCompleted}/${goal.annualGoal} books this year');
+      parts.add('${goal.yearCompleted}/${goal.annualGoal} buku tahun ini');
     }
 
     if (parts.isEmpty) {
-      return 'Set your daily and monthly reading goals';
+      return 'Atur targetmu, lalu gas baca!';
     }
 
     return parts.join(' · ');
@@ -70,14 +70,16 @@ class AchievementEntryCard extends StatelessWidget {
             // // DIUBAH: Membuka Halaman A lewat route '/achievement'
             await Navigator.pushNamed(context, '/achievement');
             if (context.mounted) {
-              Provider.of<GoalProvider>(context, listen: false).loadGoals(userId);
+              Provider.of<GoalProvider>(
+                context,
+                listen: false,
+              ).loadGoals(userId);
             }
           },
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Row(
               children: [
-                // Kotak rounded 44 berlatar lavender dengan ikon piala merah marun
                 Container(
                   width: 44,
                   height: 44,
@@ -86,7 +88,7 @@ class AchievementEntryCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    Icons.emoji_events_outlined,
+                    Icons.auto_stories_rounded,
                     color: AppColors.kRedMaroon,
                     size: 24,
                   ),
@@ -99,7 +101,7 @@ class AchievementEntryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Achievement',
+                        'Achievement Gaskeun!',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -121,11 +123,7 @@ class AchievementEntryCard extends StatelessWidget {
                 SizedBox(width: 8),
 
                 // Ikon panah kanan abu
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
-                  size: 22,
-                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 22),
               ],
             ),
           ),

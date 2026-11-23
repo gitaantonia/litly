@@ -21,23 +21,6 @@ void main() {
   });
 
   group('Pengujian Logika dan Perhitungan Statistik Litly', () {
-    test(
-      'Pengaturan dan penyimpanan target membaca tahunan (Annual Reading Goal)',
-      () async {
-        final bookService = BookService();
-        final year = DateTime.now().year;
-
-        // 1. Default target membaca tahunan adalah 24 buku
-        final defaultGoal = await bookService.getAnnualReadingGoal(year);
-        expect(defaultGoal, 24);
-
-        // 2. Mengubah target membaca tahunan ke 35 buku
-        await bookService.setAnnualReadingGoal(year, 35);
-        final updatedGoal = await bookService.getAnnualReadingGoal(year);
-        expect(updatedGoal, 35);
-      },
-    );
-
     test('Perhitungan Reading Time dan Pages Read dari sesi membaca', () {
       final sessions = [
         ReadingSession(
@@ -408,7 +391,6 @@ void main() {
               bookService: bookService,
               initialSessions: sampleSessions,
               initialBooks: sampleBooks,
-              initialAnnualGoal: 24,
             ),
           ),
         ),
@@ -427,30 +409,18 @@ void main() {
       // 3. Empat Kartu Statistik
       expect(find.text('Reading Time'), findsOneWidget);
       expect(find.text('Pages Read'), findsOneWidget);
-      expect(find.text('Books Done'), findsOneWidget);
-      expect(find.text('Active Streak'), findsOneWidget);
+      expect(find.text('Buku Tamat'), findsOneWidget);
+      expect(find.text('Hari Baca'), findsOneWidget);
 
       // 4. Banner Top Genre
       expect(find.text('Top Genre'), findsOneWidget);
 
       // 5. Reading Velocity Bar Chart & Best Session
-      expect(find.text('Reading Velocity'), findsOneWidget);
-      expect(find.text('Best Session'), findsOneWidget);
-      expect(find.text('M'), findsOneWidget);
-      expect(find.text('W'), findsOneWidget);
-      expect(find.text('F'), findsOneWidget);
-
-      // 6. Reading Goal Card (Scroll jika diperlukan)
-      final currentYear = DateTime.now().year;
-      await tester.scrollUntilVisible(
-        find.text('$currentYear Reading Goal'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('$currentYear Reading Goal'), findsOneWidget);
-      expect(find.text('1 of 24 books completed'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
-      expect(find.text('Buku yang Selesai Dibaca'), findsOneWidget);
+      expect(find.text('Bacaan per Hari'), findsOneWidget);
+      expect(find.text('Sesi Terlama'), findsOneWidget);
+      expect(find.text('Sen'), findsOneWidget);
+      expect(find.text('Min'), findsOneWidget);
+      expect(find.textContaining('Reading Goal'), findsNothing);
     });
 
     testWidgets(
@@ -469,7 +439,6 @@ void main() {
                 bookService: bookService,
                 initialSessions: [],
                 initialBooks: [],
-                initialAnnualGoal: 24,
               ),
             ),
           ),
@@ -481,16 +450,19 @@ void main() {
         await tester.tap(find.text('This Month'));
         await tester.pump(Duration(milliseconds: 300));
         expect(find.text('This Month'), findsOneWidget);
+        expect(find.text('Bacaan per Minggu'), findsOneWidget);
 
         // Tap 'Year'
         await tester.tap(find.text('Year'));
         await tester.pump(Duration(milliseconds: 300));
         expect(find.text('Year'), findsOneWidget);
+        expect(find.text('Bacaan per Bulan'), findsOneWidget);
 
         // Tap 'This Week' kembali
         await tester.tap(find.text('This Week'));
         await tester.pump(Duration(milliseconds: 300));
         expect(find.text('This Week'), findsOneWidget);
+        expect(find.text('Bacaan per Hari'), findsOneWidget);
       },
     );
 
@@ -498,11 +470,7 @@ void main() {
       tester,
     ) async {
       final nowWib = DateTime.now().toUtc().add(Duration(hours: 7));
-      final daysInMonth = DateTime.utc(
-        nowWib.year,
-        nowWib.month + 1,
-        0,
-      ).day;
+      final daysInMonth = DateTime.utc(nowWib.year, nowWib.month + 1, 0).day;
       final otherDay = nowWib.day > 7 ? 1 : daysInMonth;
       final otherSessionDate = DateTime.utc(
         nowWib.year,
@@ -533,15 +501,12 @@ void main() {
 
       await tester.pumpWidget(
         MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AppState>.value(value: appState),
-          ],
+          providers: [ChangeNotifierProvider<AppState>.value(value: appState)],
           child: MaterialApp(
             home: StatisticsScreen(
               bookService: bookService,
               initialSessions: sessions,
               initialBooks: [],
-              initialAnnualGoal: 24,
             ),
           ),
         ),
@@ -560,60 +525,5 @@ void main() {
       await tester.pump(Duration(milliseconds: 300));
       expect(find.text('0h 3m'), findsOneWidget);
     });
-
-    testWidgets(
-      'Dialog Edit Reading Goal dapat dibuka dan menyimpan target baru',
-      (tester) async {
-        final bookService = BookService();
-        final appState = AppState(bookService);
-
-        await tester.pumpWidget(
-          MultiProvider(
-            providers: [
-              ChangeNotifierProvider<AppState>.value(value: appState),
-            ],
-            child: MaterialApp(
-              home: StatisticsScreen(
-                bookService: bookService,
-                initialSessions: [],
-                initialBooks: [],
-                initialAnnualGoal: 24,
-              ),
-            ),
-          ),
-        );
-
-        await tester.pump();
-
-        // Scroll hingga tombol Edit terlihat
-        await tester.scrollUntilVisible(
-          find.text('Edit'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-
-        // Buka dialog edit target
-        await tester.tap(find.text('Edit'));
-        await tester.pump(Duration(milliseconds: 300));
-
-        final currentYear = DateTime.now().year;
-        expect(find.text('Edit $currentYear Reading Goal'), findsOneWidget);
-        expect(find.text('Target Buku'), findsOneWidget);
-        expect(find.text('Simpan'), findsOneWidget);
-
-        // Input nilai target baru: 30
-        await tester.enterText(find.byType(TextField), '30');
-        await tester.pump(Duration(milliseconds: 100));
-
-        // Klik Simpan
-        await tester.tap(find.text('Simpan'));
-        await tester.pump();
-        await tester.pump(Duration(milliseconds: 500));
-
-        // Dialog tertutup dan target terbarui
-        expect(find.text('Edit $currentYear Reading Goal'), findsNothing);
-        expect(find.text('0 of 30 books completed'), findsOneWidget);
-      },
-    );
   });
 }

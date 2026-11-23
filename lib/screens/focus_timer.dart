@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/colors.dart';
+import '../constants/reading_colors.dart';
 import '../models/book.dart';
 import '../models/reading_session.dart';
+import '../providers/achievement_provider.dart';
 import '../services/book_service.dart';
 import '../services/focus_timer_service.dart';
+import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../providers/auth_provider.dart';
 import '../providers/goal_provider.dart';
@@ -103,7 +105,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                       separatorBuilder: (_, _) => Divider(height: 1),
                       itemBuilder: (context, index) {
                         final book = books[index];
-                        final isSelected = timerService.selectedBook?.id == book.id;
+                        final isSelected =
+                            timerService.selectedBook?.id == book.id;
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
@@ -115,7 +118,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.poppins(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                               color: isSelected ? kPurple : Colors.black87,
                             ),
                           ),
@@ -195,13 +200,16 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                   spacing: 12,
                   runSpacing: 10,
                   children: durations.map((mins) {
-                    final isCurrent = timerService.totalDurationSeconds == mins * 60;
+                    final isCurrent =
+                        timerService.totalDurationSeconds == mins * 60;
                     return ChoiceChip(
                       label: Text(
                         '$mins Menit',
                         style: GoogleFonts.poppins(
                           color: isCurrent ? Colors.white : kNavy,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isCurrent
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                       selected: isCurrent,
@@ -236,15 +244,20 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
     try {
       final bookService = BookService();
       final appState = Provider.of<AppState>(context, listen: false);
+      final authProvider = context.read<AuthProvider>();
+      final achievementProvider = context.read<AchievementProvider>();
+      final goalProvider = context.read<GoalProvider>();
 
       final String sessionBookTitle = timerService.selectedBook != null
           ? timerService.selectedBook!.title
           : 'Membaca Bebas';
 
       final String? sessionBookId = timerService.selectedBook?.id;
-      final int spentSeconds = timerService.totalDurationSeconds - timerService.remainingSeconds;
+      final int spentSeconds =
+          timerService.totalDurationSeconds - timerService.remainingSeconds;
       final int spentMinutes = (spentSeconds / 60).ceil();
       final int loggedPages = timerService.pagesRead;
+      String? reminderWarning;
 
       // 1. Buat data sesi membaca
       final session = ReadingSession(
@@ -259,10 +272,21 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
 
       // 2. Simpan sesi membaca ke SQLite
       await bookService.addReadingSession(session);
+      if (loggedPages > 0) {
+        try {
+          await NotificationService.instance.onReadingActivitySaved();
+        } on Exception catch (error) {
+          reminderWarning =
+              'Sesi tersimpan, tetapi jadwal pengingat gagal diperbarui: $error';
+        }
+      }
 
       // 3. Update progres halaman buku jika ada buku yang dipilih
       if (sessionBookId != null && loggedPages > 0) {
-        final updated = await bookService.updateBookProgress(sessionBookId, loggedPages);
+        final updated = await bookService.updateBookProgress(
+          sessionBookId,
+          loggedPages,
+        );
         if (updated != null) {
           await appState.loadBooks();
         } else {
@@ -274,15 +298,29 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
 
       if (!mounted) return;
 
-      int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
-      context.read<GoalProvider>().checkGoalAndCelebrate(context, userId); // cek target harian
+      final userId = authProvider.user?.id ?? 0;
+      if (loggedPages > 0 || spentSeconds > 0) {
+        try {
+          await achievementProvider.checkAndShow(userId);
+        } on Exception catch (error) {
+          final warning =
+              'Sesi tersimpan, tetapi pencapaian gagal diperbarui: $error';
+          reminderWarning = reminderWarning == null
+              ? warning
+              : '$reminderWarning\n$warning';
+        }
+      }
+      if (!mounted) return;
+      await goalProvider.checkGoalAndCelebrate(context, userId);
+      if (!mounted) return;
 
       // 4. Tampilkan dialog ringkasan sesi membaca (PB-033)
       await showDialog(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) {
-          final timeStr = "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')} WIB";
+          final timeStr =
+              "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')} WIB";
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(
@@ -290,7 +328,11 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
             ),
             title: Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.green[600], size: 28),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.green[600],
+                  size: 28,
+                ),
                 SizedBox(width: 10),
                 Text(
                   'Sesi Selesai!',
@@ -359,10 +401,12 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Sesi fokus membaca berhasil disimpan!',
+            reminderWarning ?? 'Sesi fokus membaca berhasil disimpan!',
             style: GoogleFonts.poppins(),
           ),
-          backgroundColor: Colors.green[700],
+          backgroundColor: reminderWarning == null
+              ? Colors.green[700]
+              : Colors.orange[800],
         ),
       );
 
@@ -470,7 +514,11 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.auto_stories_rounded, color: kPurple, size: 24),
+                      Icon(
+                        Icons.auto_stories_rounded,
+                        color: kPurple,
+                        size: 24,
+                      ),
                       SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -487,7 +535,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                               ),
                             ),
                             Text(
-                              book != null ? book.author : 'Ketuk untuk memilih buku',
+                              book != null
+                                  ? book.author
+                                  : 'Ketuk untuk memilih buku',
                               maxLines: 1,
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
@@ -553,9 +603,10 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                                 ? 'FOCUS FLOW'
                                 : timerService.isPaused
                                 ? 'PAUSED'
-                                : (timerService.status == FocusTimerStatus.completed
-                                    ? 'SESI SELESAI'
-                                    : 'SIAP MEMBACA'),
+                                : (timerService.status ==
+                                          FocusTimerStatus.completed
+                                      ? 'SESI SELESAI'
+                                      : 'SIAP MEMBACA'),
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -606,7 +657,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                       label: Text(
                         timerService.isRunning
                             ? 'Pause Flow'
-                            : (timerService.isPaused ? 'Resume Flow' : 'Start Flow'),
+                            : (timerService.isPaused
+                                  ? 'Resume Flow'
+                                  : 'Start Flow'),
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -733,50 +786,9 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
                 ),
               ),
 
-              SizedBox(height: 16),
-
-              // 5. Bagian Informasi Streak Secured
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Color(0xFFFFF9E6),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Color(0xFFFCE08B)),
-                ),
-                child: Row(
-                  children: [
-                    Text('🔥', style: TextStyle(fontSize: 24)),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Streak Secured!',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF8A5A00),
-                            ),
-                          ),
-                          Text(
-                            'Sesi fokus membaca ini akan memperbarui target harianmu.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: Color(0xFF8A5A00).withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
               SizedBox(height: 24),
 
-              // 6. Tombol Complete & Save Session (PB-033 & PB-034)
+              // Tombol Complete & Save Session (PB-033 & PB-034)
               SizedBox(
                 width: double.infinity,
                 height: 52,

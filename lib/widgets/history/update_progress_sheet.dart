@@ -6,6 +6,8 @@ import 'package:litly/providers/achievement_provider.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/providers/book_history_provider.dart';
 import 'package:litly/providers/goal_provider.dart';
+import 'package:litly/services/notification_service.dart';
+import 'package:litly/state/app_state.dart';
 
 // BARU: Modal bottom sheet untuk memperbarui progres halaman dan mencatat sesi
 class UpdateProgressSheet extends StatefulWidget {
@@ -37,7 +39,9 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
   @override
   void initState() {
     super.initState();
-    _pageController.text = widget.currentPage > 0 ? widget.currentPage.toString() : '';
+    _pageController.text = widget.currentPage > 0
+        ? widget.currentPage.toString()
+        : '';
   }
 
   @override
@@ -117,7 +121,9 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
         context: context,
         builder: (dialogCtx) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Text(
               'Konfirmasi Revisi Halaman',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -138,7 +144,10 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text('Ya, Simpan', style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Ya, Simpan',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -148,6 +157,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
       if (confirm != true) {
         return;
       }
+      if (!mounted) return;
     }
 
     setState(() {
@@ -155,9 +165,11 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
     });
 
     try {
-      BookHistoryProvider historyProvider =
-          Provider.of<BookHistoryProvider>(context, listen: false);
-      int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
+      final historyProvider = context.read<BookHistoryProvider>();
+      final userId = context.read<AuthProvider>().user?.id ?? 0;
+      final appState = context.read<AppState>();
+      final achievementProvider = context.read<AchievementProvider>();
+      final goalProvider = context.read<GoalProvider>();
 
       String? error = await historyProvider.saveProgress(
         bookId: widget.bookId,
@@ -171,34 +183,42 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red[700],
-          ),
+          SnackBar(content: Text(error), backgroundColor: Colors.red[700]),
         );
         return;
       }
 
-      // Berhasil disimpan
       if (!mounted) return;
-      Navigator.pop(context); // Tutup bottom sheet
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      await appState.loadBooks();
+
+      String? reminderWarning;
+      try {
+        await NotificationService.instance.onReadingActivitySaved();
+      } on Exception catch (error) {
+        reminderWarning =
+            'Progress tersimpan, tetapi jadwal pengingat gagal diperbarui: $error';
+      }
+      if (!mounted) return;
+
+      // Panggil verifikasi lencana dan target harian
+      await achievementProvider.checkAndShow(userId);
+      if (!mounted) return;
+      goalProvider.checkGoalAndCelebrate(context, userId);
+
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(
         SnackBar(
-          content: Text('Progress berhasil diperbarui'),
-          backgroundColor: Color(0xFFB5294E),
+          content: Text(reminderWarning ?? 'Progress berhasil diperbarui'),
+          backgroundColor: reminderWarning == null
+              ? const Color(0xFFA65F59)
+              : Colors.orange[800],
         ),
       );
 
-      // Jika buku baru saja selesai, tampilkan dialog perayaan
       if (newPage >= widget.totalPages && widget.totalPages > 0) {
         _showCelebrationDialog(widget.bookTitle);
-      }
-
-      // Panggil verifikasi lencana dan target harian
-      if (context.mounted) {
-        context.read<AchievementProvider>().checkAndShow(context, userId); // cek lencana
-        context.read<GoalProvider>().checkGoalAndCelebrate(context, userId); // cek target harian
       }
     } catch (e) {
       if (!mounted) return;
@@ -220,7 +240,9 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           contentPadding: EdgeInsets.all(24),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -240,10 +262,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                         shape: BoxShape.circle,
                       ),
                       child: Center(
-                        child: Text(
-                          '🎉',
-                          style: TextStyle(fontSize: 36),
-                        ),
+                        child: Text('🎉', style: TextStyle(fontSize: 36)),
                       ),
                     ),
                   );
@@ -252,19 +271,13 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
               SizedBox(height: 16),
               Text(
                 'Selamat! 🎉',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
               Text(
                 'Kamu telah menyelesaikan $bookTitle.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               SizedBox(height: 20),
               SizedBox(
@@ -272,7 +285,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(dialogCtx),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFB5294E),
+                    backgroundColor: Color(0xFFA65F59),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -338,10 +351,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
               SizedBox(height: 4),
               Text(
                 'Sebelumnya: p. ${widget.currentPage} dari ${widget.totalPages}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               ),
               SizedBox(height: 20),
 
@@ -363,14 +373,17 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                 decoration: InputDecoration(
                   hintText: 'Contoh: 124',
                   errorText: _pageError,
-                  prefixIcon: Icon(Icons.menu_book, color: Color(0xFFB5294E)),
+                  prefixIcon: Icon(Icons.menu_book, color: Color(0xFFA65F59)),
                   filled: true,
                   fillColor: isDarkMode ? Color(0xFF282846) : Color(0xFFF1EEFB),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
               SizedBox(height: 16),
@@ -393,14 +406,20 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                 decoration: InputDecoration(
                   hintText: 'Contoh: 28',
                   errorText: _durationError,
-                  prefixIcon: Icon(Icons.timer_outlined, color: Colors.orange[700]),
+                  prefixIcon: Icon(
+                    Icons.timer_outlined,
+                    color: Colors.orange[700],
+                  ),
                   filled: true,
                   fillColor: isDarkMode ? Color(0xFF282846) : Color(0xFFF1EEFB),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
               SizedBox(height: 24),
@@ -424,7 +443,9 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
@@ -445,10 +466,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Batal',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ),
               ),

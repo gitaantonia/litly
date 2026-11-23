@@ -4,6 +4,7 @@ import 'package:litly/core/app_colors.dart';
 import 'package:litly/core/badge_style.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/services/achievement_service.dart';
+import 'package:litly/services/book_service.dart';
 import 'package:litly/widgets/profile/badge_detail_sheet.dart';
 
 // Halaman B: Level, XP, dan Koleksi Lencana (AppBar: Level)
@@ -16,9 +17,12 @@ class LevelScreen extends StatefulWidget {
 
 class _LevelScreenState extends State<LevelScreen> {
   final AchievementService _achievementService = AchievementService();
+  final BookService _bookService = BookService();
   List<Map<String, dynamic>> _allAchievements = [];
   bool _isLoading = true;
   int _selectedFilterIndex = 0; // 0 = Semua, 1 = Terbuka, 2 = Terkunci
+  int _totalPagesRead = 0;
+  int _completedBooks = 0;
 
   @override
   void initState() {
@@ -27,14 +31,26 @@ class _LevelScreenState extends State<LevelScreen> {
   }
 
   Future<void> _loadData() async {
-    int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
+    if (mounted) setState(() => _isLoading = true);
+    final userId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
     await _achievementService.checkAndUnlockAchievements(userId);
-    List<Map<String, dynamic>> list =
-        await _achievementService.getAllAchievementsWithStatus(userId);
+    final list = await _achievementService.getAllAchievementsWithStatus(userId);
+    final sessions = await _bookService.getReadingSessions();
+    final books = await _bookService.getBooks();
+    final totalPagesRead = sessions.fold(
+      0,
+      (total, session) => total + session.pagesRead,
+    );
+    final completedBooks = books
+        .where((book) => book.status.trim().toLowerCase() == 'completed')
+        .length;
 
     if (mounted) {
       setState(() {
         _allAchievements = list;
+        _totalPagesRead = totalPagesRead;
+        _completedBooks = completedBooks;
         _isLoading = false;
       });
     }
@@ -53,10 +69,9 @@ class _LevelScreenState extends State<LevelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    int unlockedCount =
-        _allAchievements.where((item) => item['is_unlocked'] == 1).length;
+    int unlockedCount = _allAchievements
+        .where((item) => item['is_unlocked'] == 1)
+        .length;
     int totalCount = _allAchievements.length;
 
     // Filter daftar lencana berdasarkan tab
@@ -66,18 +81,23 @@ class _LevelScreenState extends State<LevelScreen> {
       return true;
     }).toList();
 
-    // Data Level & XP sederhana
-    int currentLevel = 3;
-    int currentXp = 340;
-    int nextLevelXp = 500;
+    final experiencePoints =
+        _totalPagesRead + (_completedBooks * 100) + (unlockedCount * 25);
+    final currentLevel = (experiencePoints ~/ 100) + 1;
+    final currentXp = experiencePoints % 100;
+    const nextLevelXp = 100;
     double xpProgress = (currentXp / nextLevelXp).clamp(0.0, 1.0);
+    final levelName = currentLevel >= 10
+        ? 'Legenda Litly'
+        : currentLevel >= 5
+        ? 'Sultan Buku'
+        : 'Pejuang Halaman';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        // // DIUBAH: Judul AppBar adalah "Level" sesuai desain Halaman B
         title: Text(
-          'Level',
+          'Level Up!',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -88,19 +108,7 @@ class _LevelScreenState extends State<LevelScreen> {
         foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
       ),
       body: Container(
-        decoration: BoxDecoration(
-          color: isDarkMode ? Theme.of(context).scaffoldBackgroundColor : null,
-          gradient: isDarkMode
-              ? null
-              : LinearGradient(
-                  colors: [
-                    AppColors.profileBgStart,
-                    AppColors.profileBgEnd,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-        ),
+        color: AppColors.kBackground,
         child: SafeArea(
           child: _isLoading
               ? Center(child: CircularProgressIndicator())
@@ -155,7 +163,7 @@ class _LevelScreenState extends State<LevelScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Level $currentLevel · Book Explorer',
+                                            'Lv. $currentLevel · $levelName',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -163,7 +171,7 @@ class _LevelScreenState extends State<LevelScreen> {
                                           ),
                                           SizedBox(height: 4),
                                           Text(
-                                            '$unlockedCount dari $totalCount lencana terbuka',
+                                            '$_totalPagesRead halaman · $_completedBooks buku tamat',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: AppColors.textSecondary,
@@ -181,7 +189,7 @@ class _LevelScreenState extends State<LevelScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'XP Progres',
+                                    'XP ke Level Berikutnya',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -211,8 +219,7 @@ class _LevelScreenState extends State<LevelScreen> {
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: AppColors.kRedMaroon,
-                                        borderRadius:
-                                            BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
                                   ),
@@ -245,21 +252,24 @@ class _LevelScreenState extends State<LevelScreen> {
                           itemCount: filteredBadges.length,
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 14,
-                            childAspectRatio: 0.88,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 0.88,
+                              ),
                           itemBuilder: (context, index) {
                             Map<String, dynamic> item = filteredBadges[index];
                             bool isUnlocked = item['is_unlocked'] == 1;
                             String badgeId = item['id'] as String? ?? '';
                             String title = item['title'] as String? ?? '';
                             String desc = item['description'] as String? ?? '';
-                            String iconName = item['icon_name'] as String? ?? '';
+                            String iconName =
+                                item['icon_name'] as String? ?? '';
 
-                            BadgeStyleData style =
-                                BadgeStyle.getStyle(badgeId, iconName);
+                            BadgeStyleData style = BadgeStyle.getStyle(
+                              badgeId,
+                              iconName,
+                            );
 
                             return InkWell(
                               onTap: () => _showBadgeDetail(item),
@@ -286,8 +296,9 @@ class _LevelScreenState extends State<LevelScreen> {
                                       decoration: BoxDecoration(
                                         color: isUnlocked
                                             ? style.backgroundColor
-                                            : AppColors.kLavender
-                                                .withOpacity(0.5),
+                                            : AppColors.kLavender.withOpacity(
+                                                0.5,
+                                              ),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -330,8 +341,7 @@ class _LevelScreenState extends State<LevelScreen> {
                                         color: isUnlocked
                                             ? Color(0xFFE8F5E9)
                                             : AppColors.kLavender,
-                                        borderRadius:
-                                            BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
                                         isUnlocked ? 'Terbuka' : 'Terkunci',

@@ -71,7 +71,7 @@ class HistoryTimeline extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFB5294E),
+                    color: Color(0xFFA65F59),
                   ),
                 ),
               ),
@@ -146,8 +146,8 @@ class HistoryTimeline extends StatelessWidget {
                                 isLatest ? Icons.bolt : Icons.menu_book,
                                 size: 16,
                                 color: isLatest
-                                    ? Color(0xFFB5294E)
-                                    : (isDarkMode ? Colors.white70 : Color(0xFF2E365A)),
+                                    ? Color(0xFFA65F59)
+                                    : (isDarkMode ? Colors.white70 : Color(0xFF38323B)),
                               ),
                             ),
 

@@ -104,7 +104,7 @@ class BookSummaryCard extends StatelessWidget {
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: Color(0xFFB5294E),
+                                      color: Color(0xFFA65F59),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -114,7 +114,7 @@ class BookSummaryCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFFB5294E),
+                                      color: Color(0xFFA65F59),
                                       letterSpacing: 0.5,
                                     ),
                                   ),
@@ -182,7 +182,7 @@ class BookSummaryCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFFB5294E),
+                                    color: Color(0xFFA65F59),
                                   ),
                                 ),
                               ],
@@ -207,7 +207,7 @@ class BookSummaryCard extends StatelessWidget {
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Color(0xFFB5294E), Color(0xFFD45278)],
+                              colors: [Color(0xFFA65F59), Color(0xFFA65F59)],
                             ),
                           ),
                         ),
@@ -279,7 +279,7 @@ class BookSummaryCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFB5294E),
+            color: Color(0xFFA65F59),
           ),
         ),
       ),

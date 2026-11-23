@@ -4,12 +4,17 @@ import 'package:litly/core/app_colors.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/providers/goal_provider.dart';
 import 'package:litly/widgets/goals/edit_goals_sheet.dart';
+import 'package:litly/widgets/goals/book_cover_item.dart';
 
 // // DIUBAH: Kartu progres tantangan membaca tahunan sesuai gambar desain 2
 class ReadingChallengeCard extends StatelessWidget {
   ReadingChallengeCard({Key? key}) : super(key: key);
 
-  void _openEditSheet(BuildContext context, GoalProvider goal, int userId) async {
+  void _openEditSheet(
+    BuildContext context,
+    GoalProvider goal,
+    int userId,
+  ) async {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -43,7 +48,8 @@ class ReadingChallengeCard extends StatelessWidget {
     // Perhitungan status dan persentase target tahunan
     DateTime now = DateTime.now();
     int dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
-    bool isLeapYear = (now.year % 4 == 0 && now.year % 100 != 0) || (now.year % 400 == 0);
+    bool isLeapYear =
+        (now.year % 4 == 0 && now.year % 100 != 0) || (now.year % 400 == 0);
     int totalDaysInYear = isLeapYear ? 366 : 365;
 
     double progress = 0.0;
@@ -59,16 +65,14 @@ class ReadingChallengeCard extends StatelessWidget {
       int diff = yearCompleted - expected.floor();
 
       if (yearCompleted >= annualGoal) {
-        statusMessage = 'Challenge complete! Amazing work 🎉';
+        statusMessage = 'Misi tahunan kelar! Kamu keren banget.';
       } else if (diff > 0) {
-        String bookWord = diff == 1 ? 'book' : 'books';
-        statusMessage = 'You are $diff $bookWord ahead of your annual schedule. Keep going!';
+        statusMessage = 'Kamu $diff buku lebih cepat dari target. Gas terus!';
       } else if (diff < 0) {
-        int diffAbs = diff.abs();
-        String bookWord = diffAbs == 1 ? 'book' : 'books';
-        statusMessage = 'You are $diffAbs $bookWord behind schedule. You can catch up!';
+        statusMessage =
+            'Kurang ${diff.abs()} buku dari ritme target. Masih bisa dikejar!';
       } else {
-        statusMessage = 'You are right on schedule!';
+        statusMessage = 'Pas banget sama target. Lanjutkan!';
       }
     }
 
@@ -103,7 +107,7 @@ class ReadingChallengeCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '$currentYear Reading Challenge',
+                      'Misi Baca $currentYear',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -111,7 +115,10 @@ class ReadingChallengeCard extends StatelessWidget {
                     ),
                     if (annualGoal > 0)
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.kPinkLight,
                           borderRadius: BorderRadius.circular(20),
@@ -131,7 +138,7 @@ class ReadingChallengeCard extends StatelessWidget {
 
                 if (annualGoal == 0) ...[
                   Text(
-                    "You haven't set an annual reading goal yet.",
+                    'Target buku tahunan belum diatur, bestie.',
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -144,7 +151,10 @@ class ReadingChallengeCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
                       elevation: 0,
                     ),
                     onPressed: () {
@@ -152,7 +162,7 @@ class ReadingChallengeCard extends StatelessWidget {
                       _openEditSheet(context, goalProvider, userId);
                     },
                     child: Text(
-                      'Set Goal',
+                      'Atur Target',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -182,7 +192,7 @@ class ReadingChallengeCard extends StatelessWidget {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    '$yearCompleted of $annualGoal titles complete',
+                    '$yearCompleted / $annualGoal buku tamat',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -197,6 +207,41 @@ class ReadingChallengeCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                SizedBox(height: 16),
+                Text(
+                  'Buku yang belum tamat',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 10),
+                if (goalProvider.unfinishedBooks.isEmpty)
+                  Text(
+                    'Semua bacaan tamat! Yuk cari buku baru.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 150,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: goalProvider.unfinishedBooks.length,
+                      itemBuilder: (context, index) {
+                        final book = goalProvider.unfinishedBooks[index];
+                        return BookCoverItem(
+                          title: book.title,
+                          coverUrl: book.coverUrl,
+                          percent: book.percent,
+                          isCompleted: false,
+                        );
+                      },
+                    ),
+                  ),
               ],
             ),
           ),
