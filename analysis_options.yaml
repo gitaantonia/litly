@@ -19,3 +19,6 @@ linter:
     prefer_const_literals_to_create_immutables: false
     prefer_const_constructors_in_immutables: false
     unnecessary_const: false
+    use_super_parameters: false
+    library_private_types_in_public_api: false
+    avoid_print: false
