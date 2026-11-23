@@ -135,6 +135,47 @@ void main() {
       expect(todayPages, greaterThanOrEqualTo(14));
     });
 
+    test('Sesi lintas tengah malam dihitung berdasarkan tanggal WIB dan detik timer', () async {
+      final bookService = BookService();
+      final nowWib = DateTime.now().toUtc().add(Duration(hours: 7));
+      final todayWibStartUtc = DateTime.utc(
+        nowWib.year,
+        nowWib.month,
+        nowWib.day,
+      ).subtract(Duration(hours: 7));
+      final todayId = 'wib_today_${DateTime.now().microsecondsSinceEpoch}';
+      final yesterdayId = 'wib_yesterday_${DateTime.now().microsecondsSinceEpoch}';
+      final beforeSeconds = await bookService.getTodayReadingSeconds();
+
+      await bookService.addReadingSession(
+        ReadingSession(
+          id: todayId,
+          bookTitle: 'Sesi hari ini WIB',
+          durationMinutes: 1,
+          durationSeconds: 32,
+          pagesRead: 0,
+          createdAt: todayWibStartUtc.add(Duration(seconds: 1)),
+        ),
+      );
+      await bookService.addReadingSession(
+        ReadingSession(
+          id: yesterdayId,
+          bookTitle: 'Sesi kemarin WIB',
+          durationMinutes: 1,
+          durationSeconds: 29,
+          pagesRead: 0,
+          createdAt: todayWibStartUtc.subtract(Duration(seconds: 1)),
+        ),
+      );
+
+      final todaySessions = await bookService.getTodayReadingSessions();
+      final afterSeconds = await bookService.getTodayReadingSeconds();
+
+      expect(todaySessions.any((session) => session.id == todayId), isTrue);
+      expect(todaySessions.any((session) => session.id == yesterdayId), isFalse);
+      expect(afterSeconds - beforeSeconds, 32);
+    });
+
     test('PB-034: Sinkronisasi progres membaca buku dan auto-selesai', () async {
       final bookService = BookService();
       final String testBookId = 'test_book_${DateTime.now().millisecondsSinceEpoch}';
@@ -163,6 +204,24 @@ void main() {
       expect(completedBook, isNotNull);
       expect(completedBook!.currentPage, 50);
       expect(completedBook.status, 'Completed');
+
+      final manuallyCompletedBook = Book(
+        id: '${testBookId}_manual',
+        title: 'Buku Selesai Manual',
+        author: 'Penulis SI',
+        totalPages: 80,
+        currentPage: 20,
+        status: 'Completed',
+        addedAt: DateTime.now(),
+      );
+      await bookService.addBook(manuallyCompletedBook);
+
+      final updatedCompletedBook = await bookService.updateBookProgress(
+        manuallyCompletedBook.id,
+        10,
+      );
+      expect(updatedCompletedBook!.status, 'Completed');
+      expect(updatedCompletedBook.currentPage, 30);
     });
 
     test('PB-023: Target membaca harian (Daily Reading Goal) tersimpan di SharedPreferences', () async {

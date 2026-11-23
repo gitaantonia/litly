@@ -206,7 +206,9 @@ class BookService {
       currentBook.totalPages > 0 ? currentBook.totalPages : 99999,
     );
 
-    final newStatus = (currentBook.totalPages > 0 && newPage >= currentBook.totalPages)
+    final wasCompleted = currentBook.status.trim().toLowerCase() == 'completed';
+    final newStatus = wasCompleted ||
+            (currentBook.totalPages > 0 && newPage >= currentBook.totalPages)
         ? 'Completed'
         : 'Currently Reading';
 
@@ -252,25 +254,26 @@ class BookService {
 
   // Mengambil sesi membaca khusus hari ini
   Future<List<ReadingSession>> getTodayReadingSessions() async {
-    final db = await _db;
-    final String todayDateStr = DateTime.now().toIso8601String().substring(0, 10);
-    final rows = await db.query(
-      'reading_sessions',
-      where: 'created_at LIKE ?',
-      whereArgs: ['$todayDateStr%'],
-      orderBy: 'created_at DESC',
+    final sessions = await getReadingSessions();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return sessions
+        .where((session) => session.readingDateInWib == today)
+        .toList();
+  }
+
+  // Menghitung total detik membaca hari ini berdasarkan durasi timer
+  Future<int> getTodayReadingSeconds() async {
+    final sessions = await getTodayReadingSessions();
+    return sessions.fold<int>(
+      0,
+      (total, session) => total + session.trackedDurationSeconds,
     );
-    return rows.map((row) => ReadingSession.fromMap(row)).toList();
   }
 
   // Menghitung total durasi membaca hari ini dalam menit
   Future<int> getTodayReadingMinutes() async {
-    final sessions = await getTodayReadingSessions();
-    int totalMinutes = 0;
-    for (final s in sessions) {
-      totalMinutes += s.durationMinutes;
-    }
-    return totalMinutes;
+    return (await getTodayReadingSeconds()) ~/ 60;
   }
 
   // Menghitung total halaman yang dibaca hari ini
@@ -309,8 +312,9 @@ class BookService {
   Future<List<ReadingSession>> getReadingSessionsForPeriod(DateTime start, DateTime end) async {
     final sessions = await getReadingSessions();
     return sessions.where((s) {
-      return (s.createdAt.isAfter(start) || s.createdAt.isAtSameMomentAs(start)) &&
-             (s.createdAt.isBefore(end) || s.createdAt.isAtSameMomentAs(end));
+      final createdAt = s.createdAtInWib;
+      return (createdAt.isAfter(start) || createdAt.isAtSameMomentAs(start)) &&
+          (createdAt.isBefore(end) || createdAt.isAtSameMomentAs(end));
     }).toList();
   }
 

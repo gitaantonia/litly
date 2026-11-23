@@ -240,8 +240,8 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
           : 'Membaca Bebas';
 
       final String? sessionBookId = timerService.selectedBook?.id;
-      final int spentMinutes = timerService.elapsedMinutes;
       final int spentSeconds = timerService.totalDurationSeconds - timerService.remainingSeconds;
+      final int spentMinutes = (spentSeconds / 60).ceil();
       final int loggedPages = timerService.pagesRead;
 
       // 1. Buat data sesi membaca
@@ -250,7 +250,7 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
         bookId: sessionBookId,
         bookTitle: sessionBookTitle,
         durationMinutes: spentMinutes,
-        durationSeconds: spentSeconds > 0 ? spentSeconds : spentMinutes * 60,
+        durationSeconds: spentSeconds,
         pagesRead: loggedPages,
         createdAt: DateTime.now(),
       );
@@ -263,7 +263,11 @@ class _FocusTimerScreenState extends State<FocusTimerScreen> {
         final updated = await bookService.updateBookProgress(sessionBookId, loggedPages);
         if (updated != null) {
           await appState.loadBooks();
+        } else {
+          appState.notifyReadingActivityChanged();
         }
+      } else {
+        appState.notifyReadingActivityChanged();
       }
 
       if (!mounted) return;

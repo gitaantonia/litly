@@ -8,6 +8,17 @@ class ReadingSession {
   final int pagesRead;
   final DateTime createdAt;
 
+  int get trackedDurationSeconds =>
+      durationSeconds > 0 ? durationSeconds : durationMinutes * 60;
+
+  DateTime get createdAtInWib =>
+      createdAt.toUtc().add(const Duration(hours: 7));
+
+  DateTime get readingDateInWib {
+    final wib = createdAtInWib;
+    return DateTime.utc(wib.year, wib.month, wib.day);
+  }
+
   ReadingSession({
     required this.id,
     this.bookId,

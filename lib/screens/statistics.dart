@@ -40,6 +40,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   List<ReadingSession> _allSessions = [];
   List<Book> _allBooks = [];
   int _annualGoalTarget = 24;
+  int? _lastAppDataVersion;
 
   @override
   void initState() {
@@ -66,7 +67,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     try {
       final sessions = await _bookService.getReadingSessions();
       final books = await _bookService.getBooks();
-      final currentYear = DateTime.now().year;
+      final currentYear = _now.year;
       final annualGoal = await _bookService.getAnnualReadingGoal(currentYear);
 
       if (mounted) {
@@ -87,26 +88,33 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
-  DateTime get _now => DateTime.now();
+  DateTime get _now =>
+      DateTime.now().toUtc().add(const Duration(hours: 7));
 
   // Menentukan rentang tanggal berdasarkan tab periode yang dipilih
   DateTimeRange _getPeriodRange() {
     final now = _now;
     if (_selectedPeriod == 'This Week') {
-      // Minggu berjalan: Senin 00:00:00 sampai Minggu 23:59:59
-      final startOfWeek = DateTime(now.year, now.month, now.day - (now.weekday - 1), 0, 0, 0);
-      final endOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + 6, 23, 59, 59, 999);
-      return DateTimeRange(start: startOfWeek, end: endOfWeek);
+      final startOfWeek = DateTime.utc(
+        now.year,
+        now.month,
+        now.day - (now.weekday - 1),
+      );
+      return DateTimeRange(
+        start: startOfWeek,
+        end: startOfWeek.add(const Duration(days: 7)),
+      );
     } else if (_selectedPeriod == 'This Month') {
-      // Bulan berjalan: Tanggal 1 sampai hari terakhir bulan ini
-      final startOfMonth = DateTime(now.year, now.month, 1, 0, 0, 0);
-      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
-      return DateTimeRange(start: startOfMonth, end: endOfMonth);
+      final startOfMonth = DateTime.utc(now.year, now.month);
+      return DateTimeRange(
+        start: startOfMonth,
+        end: DateTime.utc(now.year, now.month + 1),
+      );
     } else {
-      // Tahun berjalan: 1 Januari sampai 31 Desember
-      final startOfYear = DateTime(now.year, 1, 1, 0, 0, 0);
-      final endOfYear = DateTime(now.year, 12, 31, 23, 59, 59, 999);
-      return DateTimeRange(start: startOfYear, end: endOfYear);
+      return DateTimeRange(
+        start: DateTime.utc(now.year),
+        end: DateTime.utc(now.year + 1),
+      );
     }
   }
 
@@ -114,18 +122,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   List<ReadingSession> get _periodSessions {
     final range = _getPeriodRange();
     return _allSessions.where((s) {
-      return (s.createdAt.isAfter(range.start) || s.createdAt.isAtSameMomentAs(range.start)) &&
-             (s.createdAt.isBefore(range.end) || s.createdAt.isAtSameMomentAs(range.end));
+      final createdAt = s.createdAtInWib;
+      return !createdAt.isBefore(range.start) && createdAt.isBefore(range.end);
     }).toList();
   }
 
   // 1. Reading Time: Total durasi membaca dalam format Xh Ym
   int get _totalReadingMinutes {
-    int sum = 0;
-    for (final s in _periodSessions) {
-      sum += s.durationMinutes;
-    }
-    return sum;
+    final totalSeconds = _periodSessions.fold(
+      0,
+      (total, session) => total + session.trackedDurationSeconds,
+    );
+    return totalSeconds ~/ 60;
   }
 
   String get _formattedReadingTime {
@@ -145,26 +153,30 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // 3. Books Done: Jumlah buku yang sudah selesai dibaca di My Library
-  List<Book> get _completedBooks {
-    return _allBooks.where((b) {
-      return b.status.toLowerCase() == 'completed' || b.isFinished;
-    }).toList();
+  List<Book> _completedBooks(List<Book> books) {
+    return books
+        .where((book) => book.status.trim().toLowerCase() == 'completed')
+        .toList();
   }
 
-  int get _booksDoneCount => _completedBooks.length;
+  int _booksDoneCount(List<Book> books) => _completedBooks(books).length;
 
   // 4. Active Streak: Jumlah hari berturut-turut membaca hingga hari ini atau kemarin
   int get _activeStreak {
     if (_allSessions.isEmpty) return 0;
 
     final now = _now;
-    final today = DateTime(now.year, now.month, now.day);
+    final today = DateTime.utc(now.year, now.month, now.day);
     final yesterday = today.subtract(Duration(days: 1));
 
     // Kumpulan tanggal unik membaca
-    final Set<DateTime> readDays = _allSessions.map((s) {
-      return DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
-    }).toSet();
+    final Set<DateTime> readDays = _allSessions
+        .where(
+          (session) =>
+              session.trackedDurationSeconds > 0 || session.pagesRead > 0,
+        )
+        .map((session) => session.readingDateInWib)
+        .toSet();
 
     if (readDays.contains(today)) {
       int streak = 1;
@@ -188,26 +200,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // 5. Top Genre: Kategori buku yang paling sering dibaca
-  String get _topGenre {
+  String _topGenreFor(List<Book> books) {
     final Map<String, int> genreCounts = {};
+    final Map<String, String> genreLabels = {};
 
-    // Prioritas 1: Hitung dari sesi membaca yang memiliki bookId pada periode aktif
     for (final s in _periodSessions) {
       if (s.bookId != null && s.bookId!.isNotEmpty) {
-        final book = _allBooks.where((b) => b.id == s.bookId).firstOrNull;
+        final book = books.where((b) => b.id == s.bookId).firstOrNull;
         if (book != null && book.category != null && book.category!.trim().isNotEmpty) {
           final cat = book.category!.trim();
-          genreCounts[cat] = (genreCounts[cat] ?? 0) + 1;
-        }
-      }
-    }
-
-    // Prioritas 2: Jika belum ada di periode, hitung dari seluruh buku di My Library
-    if (genreCounts.isEmpty) {
-      for (final b in _allBooks) {
-        if (b.category != null && b.category!.trim().isNotEmpty) {
-          final cat = b.category!.trim();
-          genreCounts[cat] = (genreCounts[cat] ?? 0) + 1;
+          final key = cat.toLowerCase();
+          genreLabels.putIfAbsent(key, () => cat);
+          genreCounts[key] =
+              (genreCounts[key] ?? 0) + (s.pagesRead > 0 ? s.pagesRead : 1);
         }
       }
     }
@@ -216,30 +221,30 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       return 'Belum tersedia';
     }
 
-    String topCategory = 'Belum tersedia';
+    String topCategoryKey = '';
     int maxCount = 0;
     genreCounts.forEach((genre, count) {
       if (count > maxCount) {
         maxCount = count;
-        topCategory = genre;
+        topCategoryKey = genre;
       }
     });
 
-    return topCategory;
+    return genreLabels[topCategoryKey]!;
   }
 
   // 6. Reading Velocity: Distribusi durasi membaca per hari dalam seminggu (M, T, W, T, F, S, S)
   List<int> get _dailyReadingMinutes {
-    final List<int> minutesPerDay = [0, 0, 0, 0, 0, 0, 0]; // Index 0: Senin (M) ... 6: Minggu (S)
+    final List<int> secondsPerDay = [0, 0, 0, 0, 0, 0, 0];
 
     for (final s in _periodSessions) {
-      final dayIndex = s.createdAt.weekday - 1; // 1 (Mon) -> index 0, 7 (Sun) -> index 6
+      final dayIndex = s.createdAtInWib.weekday - 1;
       if (dayIndex >= 0 && dayIndex < 7) {
-        minutesPerDay[dayIndex] += s.durationMinutes;
+        secondsPerDay[dayIndex] += s.trackedDurationSeconds;
       }
     }
 
-    return minutesPerDay;
+    return secondsPerDay.map((seconds) => seconds ~/ 60).toList();
   }
 
   // Menemukan indeks hari dengan aktivitas membaca tertinggi
@@ -260,10 +265,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   ReadingSession? get _bestSession {
     if (_periodSessions.isEmpty) return null;
     ReadingSession? best;
-    int maxDuration = -1;
+    int maxDurationSeconds = -1;
     for (final s in _periodSessions) {
-      if (s.durationMinutes > maxDuration) {
-        maxDuration = s.durationMinutes;
+      if (s.trackedDurationSeconds > maxDurationSeconds) {
+        maxDurationSeconds = s.trackedDurationSeconds;
         best = s;
       }
     }
@@ -272,17 +277,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   String get _bestSessionDayText {
     final session = _bestSession;
-    if (session == null || session.durationMinutes <= 0) return 'Belum ada sesi';
+    if (session == null || session.trackedDurationSeconds <= 0) {
+      return 'Belum ada sesi';
+    }
     final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    final dayName = days[session.createdAt.weekday - 1];
-    return '$dayName, ${session.createdAt.day}/${session.createdAt.month}';
+    final date = session.createdAtInWib;
+    final dayName = days[date.weekday - 1];
+    return '$dayName, ${date.day}/${date.month}';
   }
 
   String get _bestSessionDurationText {
     final session = _bestSession;
-    if (session == null || session.durationMinutes <= 0) return '0m';
-    final hours = session.durationMinutes ~/ 60;
-    final mins = session.durationMinutes % 60;
+    if (session == null || session.trackedDurationSeconds <= 0) return '0m';
+    final totalMinutes = (session.trackedDurationSeconds / 60).ceil();
+    final hours = totalMinutes ~/ 60;
+    final mins = totalMinutes % 60;
     if (hours > 0) {
       return '${hours}h ${mins}m';
     }
@@ -292,7 +301,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   // Dialog untuk mengedit target membaca tahunan
   void _showEditGoalDialog() {
     final controller = TextEditingController(text: _annualGoalTarget.toString());
-    final currentYear = DateTime.now().year;
+    final currentYear = _now.year;
 
     showDialog(
       context: context,
@@ -405,13 +414,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     // Sinkronisasi otomatis saat koleksi di AppState diperbarui
     return Consumer<AppState>(
       builder: (context, appState, child) {
+        if (_lastAppDataVersion != appState.dataVersion) {
+          final shouldReload = _lastAppDataVersion != null;
+          _lastAppDataVersion = appState.dataVersion;
+          if (shouldReload) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted &&
+                  _lastAppDataVersion == appState.dataVersion) {
+                _loadStatisticsData();
+              }
+            });
+          }
+        }
+        final books = appState.isLoading || appState.error != null
+            ? _allBooks
+            : appState.books;
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: _loadStatisticsData,
               color: kNavy,
-              child: _buildBody(),
+              child: _buildBody(books),
             ),
           ),
         );
@@ -419,7 +443,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(List<Book> books) {
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -482,11 +506,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         SizedBox(height: 20),
 
         // 3. Empat Kartu Statistik Utama (Reading Time, Pages Read, Books Done, Active Streak)
-        _buildStatisticsCards(),
+        _buildStatisticsCards(books),
         SizedBox(height: 12),
 
         // 4. Banner Top Genre
-        _buildTopGenreBanner(),
+        _buildTopGenreBanner(books),
         SizedBox(height: 22),
 
         // 5. Grafik Reading Velocity & Best Session
@@ -494,7 +518,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         SizedBox(height: 22),
 
         // 6. Kartu Reading Goal Tahunan
-        _buildReadingGoalCard(),
+        _buildReadingGoalCard(books),
       ],
     );
   }
@@ -595,7 +619,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // Widget Empat Kartu Statistik
-  Widget _buildStatisticsCards() {
+  Widget _buildStatisticsCards(List<Book> books) {
     return Column(
       children: [
         Row(
@@ -627,7 +651,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Expanded(
               child: _buildMetricCard(
                 label: 'Books Done',
-                value: '$_booksDoneCount',
+                value: '${_booksDoneCount(books)}',
                 icon: Icons.bookmark_added_rounded,
                 accentColor: Color(0xFFD45278),
                 bgColor: Color(0xFFFCEAEF),
@@ -708,7 +732,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // Widget Banner Top Genre
-  Widget _buildTopGenreBanner() {
+  Widget _buildTopGenreBanner(List<Book> books) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -743,7 +767,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ),
                 ),
                 Text(
-                  _topGenre,
+                  _topGenreFor(books),
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -966,9 +990,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // Widget Kartu Reading Goal
-  Widget _buildReadingGoalCard() {
-    final currentYear = DateTime.now().year;
-    final completed = _booksDoneCount;
+  Widget _buildReadingGoalCard(List<Book> books) {
+    final currentYear = _now.year;
+    final completedBooks = _completedBooks(books);
+    final completed = completedBooks.length;
     final target = _annualGoalTarget;
     final double progress = target > 0 ? (completed / target).clamp(0.0, 1.0) : 0.0;
     final int percentage = (progress * 100).round();
@@ -1122,7 +1147,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
           SizedBox(height: 10),
 
-          if (_completedBooks.isEmpty)
+          if (completedBooks.isEmpty)
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -1147,7 +1172,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: _completedBooks.take(5).map((book) {
+                children: completedBooks.take(5).map((book) {
                   return Container(
                     margin: EdgeInsets.only(right: 10),
                     child: Column(

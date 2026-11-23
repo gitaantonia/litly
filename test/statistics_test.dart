@@ -21,19 +21,22 @@ void main() {
   });
 
   group('Pengujian Logika dan Perhitungan Statistik Litly', () {
-    test('Pengaturan dan penyimpanan target membaca tahunan (Annual Reading Goal)', () async {
-      final bookService = BookService();
-      final year = DateTime.now().year;
+    test(
+      'Pengaturan dan penyimpanan target membaca tahunan (Annual Reading Goal)',
+      () async {
+        final bookService = BookService();
+        final year = DateTime.now().year;
 
-      // 1. Default target membaca tahunan adalah 24 buku
-      final defaultGoal = await bookService.getAnnualReadingGoal(year);
-      expect(defaultGoal, 24);
+        // 1. Default target membaca tahunan adalah 24 buku
+        final defaultGoal = await bookService.getAnnualReadingGoal(year);
+        expect(defaultGoal, 24);
 
-      // 2. Mengubah target membaca tahunan ke 35 buku
-      await bookService.setAnnualReadingGoal(year, 35);
-      final updatedGoal = await bookService.getAnnualReadingGoal(year);
-      expect(updatedGoal, 35);
-    });
+        // 2. Mengubah target membaca tahunan ke 35 buku
+        await bookService.setAnnualReadingGoal(year, 35);
+        final updatedGoal = await bookService.getAnnualReadingGoal(year);
+        expect(updatedGoal, 35);
+      },
+    );
 
     test('Perhitungan Reading Time dan Pages Read dari sesi membaca', () {
       final sessions = [
@@ -72,7 +75,21 @@ void main() {
       expect(totalPages, 55);
     });
 
-    test('Perhitungan Books Done dari My Library (status Completed atau isFinished)', () {
+    test('Tanggal sesi dan durasi timer dibaca berdasarkan kalender WIB', () {
+      final session = ReadingSession(
+        id: 's-wib',
+        bookTitle: 'Buku WIB',
+        durationMinutes: 1,
+        durationSeconds: 45,
+        pagesRead: 1,
+        createdAt: DateTime.utc(2026, 11, 19, 18),
+      );
+
+      expect(session.readingDateInWib, DateTime.utc(2026, 11, 20));
+      expect(session.trackedDurationSeconds, 45);
+    });
+
+    test('Books Done hanya menghitung buku dengan status Completed', () {
       final books = [
         Book(
           id: 'b-1',
@@ -97,7 +114,7 @@ void main() {
           title: 'Design Patterns',
           author: 'GoF',
           totalPages: 450,
-          currentPage: 120,
+          currentPage: 450,
           status: 'Currently Reading',
           addedAt: DateTime.now(),
         ),
@@ -113,115 +130,118 @@ void main() {
       ];
 
       final completedBooks = books.where((b) {
-        return b.status.toLowerCase() == 'completed' || b.isFinished;
+        return b.status.trim().toLowerCase() == 'completed';
       }).toList();
 
       expect(completedBooks.length, 2);
       expect(completedBooks.map((b) => b.id).toList(), ['b-1', 'b-2']);
     });
 
-    test('Perhitungan Active Streak secara akurat berdasarkan tanggal membaca', () {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final yesterday = today.subtract(Duration(days: 1));
-      final twoDaysAgo = today.subtract(Duration(days: 2));
+    test(
+      'Perhitungan Active Streak secara akurat berdasarkan tanggal membaca',
+      () {
+        final now = DateTime.now().toUtc().add(Duration(hours: 7));
+        final today = DateTime.utc(now.year, now.month, now.day);
+        final yesterday = today.subtract(Duration(days: 1));
+        final twoDaysAgo = today.subtract(Duration(days: 2));
 
-      // Skenario A: Membaca hari ini, kemarin, dan 2 hari lalu -> Streak = 3
-      final activeSessions = [
-        ReadingSession(
-          id: 's-a1',
-          bookTitle: 'Book 1',
-          durationMinutes: 20,
-          durationSeconds: 1200,
-          pagesRead: 10,
-          createdAt: today.add(Duration(hours: 10)),
-        ),
-        ReadingSession(
-          id: 's-a2',
-          bookTitle: 'Book 1',
-          durationMinutes: 25,
-          durationSeconds: 1500,
-          pagesRead: 15,
-          createdAt: yesterday.add(Duration(hours: 14)),
-        ),
-        ReadingSession(
-          id: 's-a3',
-          bookTitle: 'Book 1',
-          durationMinutes: 30,
-          durationSeconds: 1800,
-          pagesRead: 12,
-          createdAt: twoDaysAgo.add(Duration(hours: 20)),
-        ),
-      ];
+        // Skenario A: Membaca hari ini, kemarin, dan 2 hari lalu -> Streak = 3
+        final activeSessions = [
+          ReadingSession(
+            id: 's-a1',
+            bookTitle: 'Book 1',
+            durationMinutes: 20,
+            durationSeconds: 1200,
+            pagesRead: 10,
+            createdAt: today.add(Duration(hours: 3)),
+          ),
+          ReadingSession(
+            id: 's-a2',
+            bookTitle: 'Book 1',
+            durationMinutes: 25,
+            durationSeconds: 1500,
+            pagesRead: 15,
+            createdAt: yesterday.add(Duration(hours: 7)),
+          ),
+          ReadingSession(
+            id: 's-a3',
+            bookTitle: 'Book 1',
+            durationMinutes: 30,
+            durationSeconds: 1800,
+            pagesRead: 12,
+            createdAt: twoDaysAgo.add(Duration(hours: 13)),
+          ),
+        ];
 
-      final Set<DateTime> readDaysA = activeSessions.map((s) {
-        return DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
-      }).toSet();
+        final Set<DateTime> readDaysA = activeSessions.map((s) {
+          return s.readingDateInWib;
+        }).toSet();
 
-      int streakA = 0;
-      if (readDaysA.contains(today)) {
-        streakA = 1;
-        DateTime checkDate = today.subtract(Duration(days: 1));
-        while (readDaysA.contains(checkDate)) {
-          streakA++;
-          checkDate = checkDate.subtract(Duration(days: 1));
+        int streakA = 0;
+        if (readDaysA.contains(today)) {
+          streakA = 1;
+          DateTime checkDate = today.subtract(Duration(days: 1));
+          while (readDaysA.contains(checkDate)) {
+            streakA++;
+            checkDate = checkDate.subtract(Duration(days: 1));
+          }
         }
-      }
-      expect(streakA, 3);
+        expect(streakA, 3);
 
-      // Skenario B: Belum membaca hari ini, tetapi membaca kemarin -> Streak tetap aktif = 1
-      final yesterdayOnlySessions = [
-        ReadingSession(
-          id: 's-b1',
-          bookTitle: 'Book 1',
-          durationMinutes: 30,
-          durationSeconds: 1800,
-          pagesRead: 15,
-          createdAt: yesterday.add(Duration(hours: 11)),
-        ),
-      ];
+        // Skenario B: Belum membaca hari ini, tetapi membaca kemarin -> Streak tetap aktif = 1
+        final yesterdayOnlySessions = [
+          ReadingSession(
+            id: 's-b1',
+            bookTitle: 'Book 1',
+            durationMinutes: 30,
+            durationSeconds: 1800,
+            pagesRead: 15,
+            createdAt: yesterday.add(Duration(hours: 4)),
+          ),
+        ];
 
-      final Set<DateTime> readDaysB = yesterdayOnlySessions.map((s) {
-        return DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
-      }).toSet();
+        final Set<DateTime> readDaysB = yesterdayOnlySessions.map((s) {
+          return s.readingDateInWib;
+        }).toSet();
 
-      int streakB = 0;
-      if (readDaysB.contains(today)) {
-        streakB = 1;
-      } else if (readDaysB.contains(yesterday)) {
-        streakB = 1;
-        DateTime checkDate = yesterday.subtract(Duration(days: 1));
-        while (readDaysB.contains(checkDate)) {
-          streakB++;
-          checkDate = checkDate.subtract(Duration(days: 1));
+        int streakB = 0;
+        if (readDaysB.contains(today)) {
+          streakB = 1;
+        } else if (readDaysB.contains(yesterday)) {
+          streakB = 1;
+          DateTime checkDate = yesterday.subtract(Duration(days: 1));
+          while (readDaysB.contains(checkDate)) {
+            streakB++;
+            checkDate = checkDate.subtract(Duration(days: 1));
+          }
         }
-      }
-      expect(streakB, 1);
+        expect(streakB, 1);
 
-      // Skenario C: Tidak membaca hari ini maupun kemarin -> Streak = 0
-      final oldSessions = [
-        ReadingSession(
-          id: 's-c1',
-          bookTitle: 'Book 1',
-          durationMinutes: 30,
-          durationSeconds: 1800,
-          pagesRead: 15,
-          createdAt: today.subtract(Duration(days: 3)),
-        ),
-      ];
+        // Skenario C: Tidak membaca hari ini maupun kemarin -> Streak = 0
+        final oldSessions = [
+          ReadingSession(
+            id: 's-c1',
+            bookTitle: 'Book 1',
+            durationMinutes: 30,
+            durationSeconds: 1800,
+            pagesRead: 15,
+            createdAt: today.subtract(Duration(days: 3)),
+          ),
+        ];
 
-      final Set<DateTime> readDaysC = oldSessions.map((s) {
-        return DateTime(s.createdAt.year, s.createdAt.month, s.createdAt.day);
-      }).toSet();
+        final Set<DateTime> readDaysC = oldSessions.map((s) {
+          return s.readingDateInWib;
+        }).toSet();
 
-      int streakC = 0;
-      if (readDaysC.contains(today)) {
-        streakC = 1;
-      } else if (readDaysC.contains(yesterday)) {
-        streakC = 1;
-      }
-      expect(streakC, 0);
-    });
+        int streakC = 0;
+        if (readDaysC.contains(today)) {
+          streakC = 1;
+        } else if (readDaysC.contains(yesterday)) {
+          streakC = 1;
+        }
+        expect(streakC, 0);
+      },
+    );
 
     test('Penentuan Top Genre dari aktivitas membaca atau koleksi buku', () {
       final books = [
@@ -339,7 +359,9 @@ void main() {
   });
 
   group('Pengujian Widget UI Halaman Statistics & Habit', () {
-    testWidgets('Tampilan awal StatisticsScreen dengan komponen lengkap', (tester) async {
+    testWidgets('Tampilan awal StatisticsScreen dengan komponen lengkap', (
+      tester,
+    ) async {
       final sampleBooks = [
         Book(
           id: 'b-1',
@@ -347,8 +369,18 @@ void main() {
           author: 'Robert C. Martin',
           category: 'Technology',
           totalPages: 300,
-          currentPage: 300,
+          currentPage: 100,
           status: 'Completed',
+          addedAt: DateTime.now(),
+        ),
+        Book(
+          id: 'b-2',
+          title: 'Finished Pages, Active Status',
+          author: 'Test Author',
+          category: 'Technology',
+          totalPages: 100,
+          currentPage: 100,
+          status: 'Currently Reading',
           addedAt: DateTime.now(),
         ),
       ];
@@ -370,9 +402,7 @@ void main() {
 
       await tester.pumpWidget(
         MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AppState>.value(value: appState),
-          ],
+          providers: [ChangeNotifierProvider<AppState>.value(value: appState)],
           child: MaterialApp(
             home: StatisticsScreen(
               bookService: bookService,
@@ -418,11 +448,86 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('$currentYear Reading Goal'), findsOneWidget);
+      expect(find.text('1 of 24 books completed'), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
       expect(find.text('Buku yang Selesai Dibaca'), findsOneWidget);
     });
 
-    testWidgets('Beralih tab periode (This Week, This Month, Year) berfungsi dengan mulus', (tester) async {
+    testWidgets(
+      'Beralih tab periode (This Week, This Month, Year) berfungsi dengan mulus',
+      (tester) async {
+        final bookService = BookService();
+        final appState = AppState(bookService);
+
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider<AppState>.value(value: appState),
+            ],
+            child: MaterialApp(
+              home: StatisticsScreen(
+                bookService: bookService,
+                initialSessions: [],
+                initialBooks: [],
+                initialAnnualGoal: 24,
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+
+        // Tap 'This Month'
+        await tester.tap(find.text('This Month'));
+        await tester.pump(Duration(milliseconds: 300));
+        expect(find.text('This Month'), findsOneWidget);
+
+        // Tap 'Year'
+        await tester.tap(find.text('Year'));
+        await tester.pump(Duration(milliseconds: 300));
+        expect(find.text('Year'), findsOneWidget);
+
+        // Tap 'This Week' kembali
+        await tester.tap(find.text('This Week'));
+        await tester.pump(Duration(milliseconds: 300));
+        expect(find.text('This Week'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Reading Time dan Pages Read mengikuti filter periode WIB', (
+      tester,
+    ) async {
+      final nowWib = DateTime.now().toUtc().add(Duration(hours: 7));
+      final daysInMonth = DateTime.utc(
+        nowWib.year,
+        nowWib.month + 1,
+        0,
+      ).day;
+      final otherDay = nowWib.day > 7 ? 1 : daysInMonth;
+      final otherSessionDate = DateTime.utc(
+        nowWib.year,
+        nowWib.month,
+        otherDay,
+        12,
+      ).subtract(Duration(hours: 7));
+      final sessions = [
+        ReadingSession(
+          id: 's-current-period',
+          bookTitle: 'Buku Hari Ini',
+          durationMinutes: 3,
+          durationSeconds: 125,
+          pagesRead: 12,
+          createdAt: DateTime.now(),
+        ),
+        ReadingSession(
+          id: 's-other-week',
+          bookTitle: 'Buku Bulan Ini',
+          durationMinutes: 2,
+          durationSeconds: 95,
+          pagesRead: 8,
+          createdAt: otherSessionDate,
+        ),
+      ];
       final bookService = BookService();
       final appState = AppState(bookService);
 
@@ -434,82 +539,81 @@ void main() {
           child: MaterialApp(
             home: StatisticsScreen(
               bookService: bookService,
-              initialSessions: [],
+              initialSessions: sessions,
               initialBooks: [],
               initialAnnualGoal: 24,
             ),
           ),
         ),
       );
-
       await tester.pump();
 
-      // Tap 'This Month'
+      expect(find.text('0h 2m'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+
       await tester.tap(find.text('This Month'));
       await tester.pump(Duration(milliseconds: 300));
-      expect(find.text('This Month'), findsOneWidget);
+      expect(find.text('0h 3m'), findsOneWidget);
+      expect(find.text('20'), findsOneWidget);
 
-      // Tap 'Year'
       await tester.tap(find.text('Year'));
       await tester.pump(Duration(milliseconds: 300));
-      expect(find.text('Year'), findsOneWidget);
-
-      // Tap 'This Week' kembali
-      await tester.tap(find.text('This Week'));
-      await tester.pump(Duration(milliseconds: 300));
-      expect(find.text('This Week'), findsOneWidget);
+      expect(find.text('0h 3m'), findsOneWidget);
     });
 
-    testWidgets('Dialog Edit Reading Goal dapat dibuka dan menyimpan target baru', (tester) async {
-      final bookService = BookService();
-      final appState = AppState(bookService);
+    testWidgets(
+      'Dialog Edit Reading Goal dapat dibuka dan menyimpan target baru',
+      (tester) async {
+        final bookService = BookService();
+        final appState = AppState(bookService);
 
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AppState>.value(value: appState),
-          ],
-          child: MaterialApp(
-            home: StatisticsScreen(
-              bookService: bookService,
-              initialSessions: [],
-              initialBooks: [],
-              initialAnnualGoal: 24,
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider<AppState>.value(value: appState),
+            ],
+            child: MaterialApp(
+              home: StatisticsScreen(
+                bookService: bookService,
+                initialSessions: [],
+                initialBooks: [],
+                initialAnnualGoal: 24,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      // Scroll hingga tombol Edit terlihat
-      await tester.scrollUntilVisible(
-        find.text('Edit'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+        // Scroll hingga tombol Edit terlihat
+        await tester.scrollUntilVisible(
+          find.text('Edit'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
 
-      // Buka dialog edit target
-      await tester.tap(find.text('Edit'));
-      await tester.pump(Duration(milliseconds: 300));
+        // Buka dialog edit target
+        await tester.tap(find.text('Edit'));
+        await tester.pump(Duration(milliseconds: 300));
 
-      final currentYear = DateTime.now().year;
-      expect(find.text('Edit $currentYear Reading Goal'), findsOneWidget);
-      expect(find.text('Target Buku'), findsOneWidget);
-      expect(find.text('Simpan'), findsOneWidget);
+        final currentYear = DateTime.now().year;
+        expect(find.text('Edit $currentYear Reading Goal'), findsOneWidget);
+        expect(find.text('Target Buku'), findsOneWidget);
+        expect(find.text('Simpan'), findsOneWidget);
 
-      // Input nilai target baru: 30
-      await tester.enterText(find.byType(TextField), '30');
-      await tester.pump(Duration(milliseconds: 100));
+        // Input nilai target baru: 30
+        await tester.enterText(find.byType(TextField), '30');
+        await tester.pump(Duration(milliseconds: 100));
 
-      // Klik Simpan
-      await tester.tap(find.text('Simpan'));
-      await tester.pump();
-      await tester.pump(Duration(milliseconds: 500));
+        // Klik Simpan
+        await tester.tap(find.text('Simpan'));
+        await tester.pump();
+        await tester.pump(Duration(milliseconds: 500));
 
-      // Dialog tertutup dan target terbarui
-      expect(find.text('Edit $currentYear Reading Goal'), findsNothing);
-      expect(find.text('0 of 30 books completed'), findsOneWidget);
-    });
+        // Dialog tertutup dan target terbarui
+        expect(find.text('Edit $currentYear Reading Goal'), findsNothing);
+        expect(find.text('0 of 30 books completed'), findsOneWidget);
+      },
+    );
   });
 }
