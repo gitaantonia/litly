@@ -4,14 +4,10 @@ import 'package:litly/core/app_colors.dart';
 import 'package:litly/providers/auth_provider.dart';
 import 'package:litly/providers/goal_provider.dart';
 import 'package:litly/providers/profile_provider.dart';
-import 'package:litly/providers/settings_provider.dart';
-import 'package:litly/providers/theme_provider.dart';
 import 'package:litly/widgets/profile/achievement_entry_card.dart'; // // BARU: import kartu Achievement
-import 'package:litly/widgets/profile/appearance_card.dart';
 import 'package:litly/widgets/profile/badge_preview_card.dart';
 import 'package:litly/widgets/profile/profile_header_card.dart';
 import 'package:litly/widgets/profile/reading_challenge_card.dart';
-import 'package:litly/widgets/profile/reading_reminder_card.dart';
 
 // Halaman utama Profil pengguna Litly
 class ProfileScreen extends StatefulWidget {
@@ -27,15 +23,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Memuat data profil, goals, settings, dan tema saat halaman dibuka
+    // Memuat data profil, goals, dan pengaturan saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
+      int userId =
+          Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
       Provider.of<AuthProvider>(context, listen: false).loadUserFromSession();
-      Provider.of<ProfileProvider>(context, listen: false).loadProfileData(userId);
-      // // BARU: Memuat data GoalProvider untuk ReadingChallengeCard & AchievementEntryCard
+      Provider.of<ProfileProvider>(
+        context,
+        listen: false,
+      ).loadProfileData(userId);
       Provider.of<GoalProvider>(context, listen: false).loadGoals(userId);
-      Provider.of<SettingsProvider>(context, listen: false).loadSettings();
-      Provider.of<ThemeProvider>(context, listen: false).loadTheme();
     });
   }
 
@@ -49,10 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           title: Text(
             'Are you sure you want to log out?',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           actions: [
             TextButton(
@@ -94,36 +88,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    int currentYear = DateTime.now().year;
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Container(
-        decoration: BoxDecoration(
-          color: isDarkMode ? Theme.of(context).scaffoldBackgroundColor : null,
-          gradient: isDarkMode
-              ? null
-              : LinearGradient(
-                  colors: [
-                    AppColors.profileBgStart,
-                    AppColors.profileBgEnd,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-        ),
+        color: AppColors.kBackground,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.only(bottom: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 16),
-
                 // 1. Header Profil
                 ProfileHeaderCard(),
-                SizedBox(height: 24),
+                SizedBox(height: 8),
 
                 // 2. Section Literary Journey
                 Padding(
@@ -133,32 +110,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: AppColors.kRedMaroon,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          SizedBox(width: 8),
                           Text(
-                            'Literary Journey',
+                            'Perjalanan Membaca',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
-                      ),
-                      Text(
-                        '$currentYear GOAL',
-                        style: TextStyle(
-                          color: AppColors.kRedMaroon,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 0.5,
-                        ),
                       ),
                     ],
                   ),
@@ -177,22 +136,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 BadgePreviewCard(),
                 SizedBox(height: 24),
 
-                // 6. Section Settings & Preferences
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    'Settings & Preferences',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                InkWell(
+                  onTap: () => Navigator.pushNamed(context, '/routine'),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, color: AppColors.kPurple),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Atur rutin membaca',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Atur waktu dan hari pengingat',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
-                ReadingReminderCard(),
-                SizedBox(height: 12),
-                AppearanceCard(),
-                SizedBox(height: 28),
+                SizedBox(height: 24),
 
                 // 7. Tombol Bawah
                 // Tombol Edit Profile Details
@@ -212,10 +198,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () async {
                         await Navigator.pushNamed(context, '/edit-profile');
                         if (!context.mounted) return;
-                        int userId = Provider.of<AuthProvider>(context, listen: false).user?.id ?? 0;
-                        Provider.of<AuthProvider>(context, listen: false).loadUserFromSession();
-                        Provider.of<ProfileProvider>(context, listen: false).loadProfileData(userId);
-                        Provider.of<GoalProvider>(context, listen: false).loadGoals(userId);
+                        int userId =
+                            Provider.of<AuthProvider>(
+                              context,
+                              listen: false,
+                            ).user?.id ??
+                            0;
+                        Provider.of<AuthProvider>(
+                          context,
+                          listen: false,
+                        ).loadUserFromSession();
+                        Provider.of<ProfileProvider>(
+                          context,
+                          listen: false,
+                        ).loadProfileData(userId);
+                        Provider.of<GoalProvider>(
+                          context,
+                          listen: false,
+                        ).loadGoals(userId);
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -223,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Icon(Icons.person, color: Colors.white, size: 20),
                           SizedBox(width: 8),
                           Text(
-                            'Edit Profile Details',
+                            'Edit profil',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -256,7 +256,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.logout, color: AppColors.kRedMaroon, size: 20),
+                          Icon(
+                            Icons.logout,
+                            color: AppColors.kRedMaroon,
+                            size: 20,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Log Out of Litly',

@@ -2,11 +2,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../widgets/litly_mascot.dart';
+
+import 'package:litly/database/db_helper.dart';
+import 'package:litly/screens/home.dart';
 import 'package:litly/screens/login.dart';
+import 'package:litly/services/session_service.dart';
 
 final Color _yellow = Color(0xFFFAE696);
-final Color _purple = Color(0xFF6B4585);
-final Color _buttonColor = Color(0xFFC3A6D8);
+final Color _purple = Color(0xFF6A4D67);
+final Color _buttonColor = Color(0xFF6A4D67);
 
 class SplashScreen extends StatefulWidget {
   SplashScreen({super.key});
@@ -17,15 +23,46 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  static const Duration _splashDuration = Duration(milliseconds: 6500);
+
   late final AnimationController _c;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 6500), // total durasi animasi
-    )..forward();
+    _c = AnimationController(vsync: this, duration: _splashDuration)..forward();
+    _restoreRememberedSession();
+  }
+
+  Future<void> _restoreRememberedSession() async {
+    final splashAnimation = Future<void>.delayed(_splashDuration);
+    try {
+      if (!await SessionService.isSessionActive()) return;
+
+      final sessionData = await SessionService.getSessionData();
+      final email = sessionData['user_email'] as String? ?? '';
+      if (email.isEmpty) return;
+
+      final user = await DbHelper().getUserByEmail(email);
+      if (user == null) return;
+
+      await splashAnimation;
+      if (!mounted || _hasNavigated) return;
+
+      _hasNavigated = true;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomeScreen(username: user.name)),
+      );
+    } catch (error) {
+      await splashAnimation;
+      if (!mounted || _hasNavigated) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memulihkan sesi: $error')));
+    }
   }
 
   @override
@@ -116,8 +153,8 @@ class _SplashScreenState extends State<SplashScreen>
                       opacity: mascotOpacity,
                       child: Transform.translate(
                         offset: Offset(0, mascotDy),
-                        child: Image.asset(
-                          'assets/images/liti_mascot.png',
+                        child: LitlyMascot(
+                          mood: LitlyMood.excited,
                           width: mascotWidth,
                         ),
                       ),
@@ -181,6 +218,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: ElevatedButton(
                           onPressed: uiT >= 1
                               ? () {
+                                  _hasNavigated = true;
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(

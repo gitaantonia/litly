@@ -1,37 +1,33 @@
 import 'package:flutter/material.dart';
 
-// Palet warna aplikasi Litly
 class AppColors {
-  // Warna lama / umum
-  static final Color primaryPurple = Color(0xFF8550A0);
-  static final Color lavenderBg = Color(0xFFF7F0FC);
-  static final Color errorRed = Color(0xFFD32F2F);
+  static const Color primaryPurple = Color(0xFF725A91);
+  static const Color lavenderBg = Color(0xFFF8F5FC);
+  static const Color errorRed = Color(0xFFB34358);
 
-  static final Color kYellow = Color(0xFFFAE696);
-  static final Color kPurple = Color(0xFF6B4585);
-  static final Color kButtonColor = Color(0xFFC3A6D8);
-  static final Color kLightPurple = Color(0xFFF3EBF9);
-  static final Color kBackground = Color(0xFFFDFDFD);
+  static const Color kYellow = Color(0xFFFFEF9C);
+  static const Color kPurple = Color(0xFF725A91);
+  static const Color kButtonColor = Color(0xFF725A91);
+  static const Color kLightPurple = Color(0xFFF1EBF8);
+  static const Color kBackground = Color(0xFFF8F5FC);
 
-  static final Color kNavy = Color(0xFF2E365A);
-  static final Color kLavenderOld = Color(0xFFF3EEF8);
-  static final Color kSoftPink = Color(0xFFFCEAEF);
-  static final Color kPinkText = Color(0xFFD45278);
+  static const Color kNavy = Color(0xFF211E25);
+  static const Color kLavenderOld = Color(0xFFF1EBF8);
+  static const Color kSoftPink = Color(0xFFF1EBF8);
+  static const Color kPinkText = Color(0xFF725A91);
 
-  // // BARU: Warna spesifik modul Profile
-  static final Color profileBgStart = Color(0xFFF3EEFF);
-  static final Color profileBgEnd = Color(0xFFFDF1F5);
-  static final Color kRedMaroon = Color(0xFFB5294E); // Merah marun/crimson
-  static final Color kPinkLight = Color(0xFFFDE8EE); // Pink muda
-  static final Color kLavender = Color(0xFFE8E4F8); // Lavender aksen
-  static final Color kNavyDark = Color(0xFF1F1F3D); // Navy gelap tombol edit
-  static final Color cardBackground = Colors.white;
-  static final Color cardBorder = Color(0xFFEBE6F2);
-  static final Color textSecondary = Color(0xFF757575);
+  static const Color profileBgStart = Color.fromARGB(255, 229, 156, 255);
+  static const Color profileBgEnd = Color(0xFFF8F5FC);
+  static const Color kRedMaroon = Color(0xFF725A91);
+  static const Color kPinkLight = Color(0xFFF1EBF8);
+  static const Color kLavender = Color(0xFFF1EBF8);
+  static const Color kNavyDark = Color(0xFF211E25);
+  static const Color cardBackground = Color(0xFFFFFFFF);
+  static const Color cardBorder = Color(0xFFE8E1F0);
+  static const Color textSecondary = Color(0xFF716B78);
 
-  // // BARU: Warna Dark Mode & Book History
-  static final Color darkBackground = Color(0xFF121212);
-  static final Color darkCard = Color(0xFF1E1E2E);
-  static final Color historyBgLight = Color(0xFFF8F6FF);
-  static final Color historyItemBg = Color(0xFFF1EEFB);
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkCard = Color(0xFF1E1E2E);
+  static const Color historyBgLight = Color(0xFFF8F5FC);
+  static const Color historyItemBg = Color(0xFFF1EBF8);
 }

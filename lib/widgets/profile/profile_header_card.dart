@@ -1,149 +1,111 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:litly/core/app_colors.dart';
-import 'package:litly/models/user_model.dart';
 import 'package:litly/providers/auth_provider.dart';
-import 'package:litly/widgets/user_avatar.dart'; // // BARU: import UserAvatar
+import 'package:litly/widgets/user_avatar.dart';
 
-// Kartu header informasi profil pengguna (Avatar, Nama, Email, Tanggal Bergabung, Tombol Edit)
 class ProfileHeaderCard extends StatelessWidget {
-  ProfileHeaderCard({Key? key}) : super(key: key);
+  const ProfileHeaderCard({super.key});
 
   String _formatMemberSince(String? createdAt) {
-    if (createdAt == null || createdAt.isEmpty) {
-      return 'Member since recently';
-    }
+    if (createdAt == null || createdAt.isEmpty) return 'Anggota baru';
     try {
-      DateTime date = DateTime.parse(createdAt);
-      List<String> months = [
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-        'December',
-      ];
-      return 'Member since ${months[date.month - 1]} ${date.year}';
-    } catch (e) {
-      return 'Member since recently';
+      final date = DateTime.parse(createdAt);
+      return 'Bergabung sejak ${date.month.toString().padLeft(2, '0')}/${date.year}';
+    } on FormatException {
+      return 'Anggota baru';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    AuthProvider authProvider = Provider.of<AuthProvider>(context);
-    UserModel? user = authProvider.user;
-
-    String displayName = user != null && user.name.isNotEmpty
+    final user = context.watch<AuthProvider>().user;
+    final displayName = user != null && user.name.isNotEmpty
         ? user.name
-        : 'Litly Reader';
-    String displayEmail = user != null && user.email.isNotEmpty
+        : 'Pembaca Litly';
+    final displayEmail = user != null && user.email.isNotEmpty
         ? user.email
         : 'reader@litly.com';
-    String memberSinceText = _formatMemberSince(user?.createdAt);
 
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 20),
-      padding: EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
+    return SizedBox(
+      height: 224,
+      width: double.infinity,
+      child: Stack(
+        alignment: Alignment.topCenter,
         children: [
-          // // DIUBAH: Avatar memakai UserAvatar dengan titik indikator online di pojok kanan bawah
-          Stack(
-            children: [
-              UserAvatar(
-                avatar: user?.avatar,
-                name: displayName,
-                size: 64,
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Color(0xFF4CAF50),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).cardColor,
-                      width: 2.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(width: 16),
-          // Informasi nama, email, dan tanggal bergabung
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  displayEmail,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 2),
-                Text(
-                  memberSinceText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 164,
+            child: ClipPath(
+              clipper: _ProfileHeaderClipper(),
+              child: const ColoredBox(color: AppColors.kYellow),
             ),
           ),
-          SizedBox(width: 8),
-          // Tombol pensil untuk membuka edit profil
-          InkWell(
-            onTap: () {
-              Navigator.pushNamed(context, '/edit-profile');
-            },
-            borderRadius: BorderRadius.circular(12),
+          Positioned(
+            top: 12,
             child: Container(
-              width: 40,
-              height: 40,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: AppColors.kLavender,
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.kNavy.withValues(alpha: 0.1),
+                    blurRadius: 16,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-              child: Icon(
-                Icons.edit_outlined,
-                color: AppColors.kNavyDark,
-                size: 20,
+              child: UserAvatar(
+                avatar: user?.avatar,
+                name: displayName,
+                size: 96,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 120,
+            left: 24,
+            right: 24,
+            child: Text(
+              displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.kNavy,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 150,
+            left: 24,
+            right: 24,
+            child: Text(
+              displayEmail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 173,
+            left: 24,
+            right: 24,
+            child: Text(
+              _formatMemberSince(user?.createdAt),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
               ),
             ),
           ),
@@ -151,4 +113,25 @@ class ProfileHeaderCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProfileHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..lineTo(0, size.height * 0.82)
+      ..cubicTo(
+        size.width * 0.25,
+        size.height * 1.12,
+        size.width * 0.72,
+        size.height * 0.55,
+        size.width,
+        size.height * 0.83,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

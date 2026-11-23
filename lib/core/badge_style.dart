@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:litly/core/app_colors.dart';
 
-// Model data style visual lencana (ikon dan warna pastel)
 class BadgeStyleData {
   final IconData icon;
   final Color iconColor;
@@ -13,59 +13,58 @@ class BadgeStyleData {
   });
 }
 
-// Helper untuk styling lencana berdasarkan ID atau nama icon
 class BadgeStyle {
   static BadgeStyleData getStyle(String? badgeId, String? iconName) {
     String key = (badgeId ?? '').toLowerCase().trim();
 
     if (key.contains('first') || key.contains('step')) {
       return BadgeStyleData(
-        icon: Icons.explore_outlined,
-        iconColor: Color(0xFF00897B),
-        backgroundColor: Color(0xFFE0F2F1), // Pastel teal
+        icon: Icons.bookmark_add_outlined,
+        iconColor: AppColors.kPurple,
+        backgroundColor: AppColors.kLightPurple,
       );
     }
     if (key.contains('page') || key.contains('turner')) {
       return BadgeStyleData(
         icon: Icons.auto_stories_outlined,
-        iconColor: Color(0xFFE65100),
-        backgroundColor: Color(0xFFFFF3E0), // Pastel orange
+        iconColor: AppColors.kPurple,
+        backgroundColor: AppColors.kLightPurple,
       );
     }
     if (key.contains('goal') || key.contains('crusher')) {
       return BadgeStyleData(
-        icon: Icons.emoji_events_outlined,
-        iconColor: Color(0xFFB5294E),
-        backgroundColor: Color(0xFFFDE8EE), // Pastel pink Litly
+        icon: Icons.check_circle_outline_rounded,
+        iconColor: AppColors.kNavy,
+        backgroundColor: AppColors.kYellow,
       );
     }
     if (key.contains('bookworm') || key.contains('worm')) {
       return BadgeStyleData(
         icon: Icons.menu_book_outlined,
-        iconColor: Color(0xFF6B4585),
-        backgroundColor: Color(0xFFF3EBF9), // Pastel purple Litly
+        iconColor: AppColors.kPurple,
+        backgroundColor: AppColors.kLightPurple,
       );
     }
     if (key.contains('night') || key.contains('owl')) {
       return BadgeStyleData(
-        icon: Icons.nightlight_round_outlined,
-        iconColor: Color(0xFF2E365A),
-        backgroundColor: Color(0xFFE8E4F8), // Pastel lavender Litly
+        icon: Icons.nights_stay_outlined,
+        iconColor: AppColors.kPurple,
+        backgroundColor: AppColors.kLightPurple,
       );
     }
     if (key.contains('marathon') || key.contains('timer')) {
       return BadgeStyleData(
         icon: Icons.timer_outlined,
-        iconColor: Color(0xFFD84315),
-        backgroundColor: Color(0xFFFFEBE6), // Pastel red-orange
+        iconColor: AppColors.kPurple,
+        backgroundColor: AppColors.kLightPurple,
       );
     }
 
     // Default fallback
     return BadgeStyleData(
-      icon: Icons.workspace_premium_outlined,
-      iconColor: Color(0xFFB5294E),
-      backgroundColor: Color(0xFFFDE8EE),
+      icon: Icons.bookmark_border_rounded,
+      iconColor: AppColors.kPurple,
+      backgroundColor: AppColors.kLightPurple,
     );
   }
 }

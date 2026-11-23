@@ -13,8 +13,18 @@ class BadgeDetailSheet extends StatelessWidget {
     try {
       DateTime dt = DateTime.parse(dateStr);
       List<String> months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
       ];
       return 'Terbuka pada ${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (e) {
@@ -28,7 +38,8 @@ class BadgeDetailSheet extends StatelessWidget {
     String title = badge['title'] as String? ?? 'Badge';
     String description = badge['description'] as String? ?? '';
     String iconName = badge['icon_name'] as String? ?? '';
-    bool isUnlocked = (badge['is_unlocked'] == 1) || (badge['unlocked_at'] != null);
+    bool isUnlocked =
+        (badge['is_unlocked'] == 1) || (badge['unlocked_at'] != null);
     String dateInfo = _formatDate(badge['unlocked_at'] as String?);
 
     BadgeStyleData style = BadgeStyle.getStyle(badgeId, iconName);
@@ -73,10 +84,7 @@ class BadgeDetailSheet extends StatelessWidget {
           // Judul lencana
           Text(
             title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
 
@@ -96,15 +104,15 @@ class BadgeDetailSheet extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isUnlocked ? Color(0xFFE8F5E9) : AppColors.kLavender,
+              color: isUnlocked ? AppColors.kYellow : AppColors.kLavender,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              isUnlocked ? 'Lencana Terbuka 🎉' : 'Lencana Terkunci',
+              isUnlocked ? 'Lencana terbuka' : 'Lencana terkunci',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isUnlocked ? Color(0xFF2E7D32) : Colors.grey[600],
+                color: isUnlocked ? AppColors.kNavy : AppColors.textSecondary,
               ),
             ),
           ),
@@ -113,10 +121,7 @@ class BadgeDetailSheet extends StatelessWidget {
             SizedBox(height: 8),
             Text(
               dateInfo,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ],
 
