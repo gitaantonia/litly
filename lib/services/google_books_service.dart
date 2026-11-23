@@ -22,17 +22,18 @@ class GoogleBooksService {
   static const _endpoint = 'https://www.googleapis.com/books/v1/volumes';
   static const _timeout = Duration(seconds: 10);
 
-  Future<List<Book>> searchBooks(String query, {int limit = 20}) async {
+  Future<List<Book>> searchBooks(
+    String query, {
+    int limit = 20,
+    String? languageCode,
+  }) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) return [];
-    return _request({'q': normalizedQuery, 'maxResults': '$limit'});
-  }
-
-  Future<List<Book>> recommendations(String subject) {
     return _request({
-      'q': 'subject:$subject',
-      'orderBy': 'relevance',
-      'maxResults': '10',
+      'q': normalizedQuery,
+      'maxResults': '$limit',
+      if (languageCode != null && languageCode.trim().isNotEmpty)
+        'langRestrict': languageCode.trim(),
     });
   }
 
@@ -87,39 +88,6 @@ class GoogleBooksService {
   }
 
   Book _bookFromJson(Map<String, dynamic> json) {
-    final info = json['volumeInfo'] as Map<String, dynamic>? ?? const {};
-    final authors = info['authors'] as List<dynamic>? ?? const [];
-    final imageLinks = info['imageLinks'] as Map<String, dynamic>? ?? const {};
-    final identifiers =
-        info['industryIdentifiers'] as List<dynamic>? ?? const [];
-    final identifier = identifiers.whereType<Map<String, dynamic>>().firstWhere(
-      (item) => item['type'] == 'ISBN_13' || item['type'] == 'ISBN_10',
-      orElse: () => const {},
-    );
-    final image =
-        imageLinks['extraLarge'] ??
-        imageLinks['large'] ??
-        imageLinks['thumbnail'] ??
-        imageLinks['smallThumbnail'];
-    final authorNames = authors.whereType<String>().toList();
-
-    return Book(
-      id: json['id'] as String? ?? '',
-      title: info['title'] as String? ?? 'Judul tidak tersedia',
-      author: authorNames.isEmpty
-          ? 'Penulis tidak diketahui'
-          : authorNames.join(', '),
-      coverUrl: image is String
-          ? image.replaceFirst('http://', 'https://')
-          : null,
-      publisher: info['publisher'] as String?,
-      publishedDate: info['publishedDate'] as String?,
-      isbn: identifier['identifier'] as String?,
-      description: info['description'] as String?,
-      totalPages: info['pageCount'] as int? ?? 0,
-      rating: (info['averageRating'] as num?)?.toDouble(),
-      ratingsCount: info['ratingsCount'] as int?,
-      addedAt: DateTime.now(),
-    );
+    return Book.fromGoogleApi(json);
   }
 }

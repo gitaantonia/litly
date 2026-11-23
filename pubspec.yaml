@@ -7,17 +7,22 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  crypto: ^3.0.8
   flutter:
     sdk: flutter
   google_fonts: ^6.2.1 # untuk fonts poppins
-  shared_preferences: ^2.5.6
-  http: ^1.2.2
-  uuid: ^4.5.1
-  provider: ^6.1.5+1
-  sqflite: ^2.4.2
+  http: ^1.6.0
   path: ^1.9.1
+  shared_preferences: ^2.5.6
+  uuid: ^4.5.1
+  sqflite: ^2.4.6
+  sqflite_common_ffi: ^2.4.7
+  provider: ^6.1.5+1
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
+  sqflite_common_ffi_web: ^1.2.2
+  image_picker: ^1.1.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -27,4 +32,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/liti_mascot.png
+    - assets/images/
+    - assets/avatars/

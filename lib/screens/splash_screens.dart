@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:litly/screens/login.dart';
 
-const _yellow = Color(0xFFFAE696);
-const _purple = Color(0xFF6B4585);
-const _buttonColor = Color(0xFFC3A6D8);
+final Color _yellow = Color(0xFFFAE696);
+final Color _purple = Color(0xFF6B4585);
+final Color _buttonColor = Color(0xFFC3A6D8);
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -24,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 6500), // total durasi animasi
+      duration: Duration(milliseconds: 6500), // total durasi animasi
     )..forward();
   }
 
@@ -45,14 +45,15 @@ class _SplashScreenState extends State<SplashScreen>
     // Ukuran bintang (radius terluar)
     final r3 =
         size.width * 0.55; // gambar 3: bintang besar, sebagian keluar layar
-    const r4 = 85.0; // gambar 4: ukuran bintang kecil (sesuaikan dgn PNG)
+    final double r4 =
+        85.0; // gambar 4: ukuran bintang kecil (sesuaikan dgn PNG)
     final halfDiag =
         sqrt(size.width * size.width + size.height * size.height) / 2;
     final r0 =
         halfDiag /
         0.4; // sangat besar -> bintang menutupi seluruh layar (gambar 1)
 
-    const mascotWidth = 215.0;
+    final double mascotWidth = 215.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -183,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const LoginScreen(),
+                                      builder: (_) => LoginScreen(),
                                     ),
                                   );
                                 }
@@ -237,7 +238,7 @@ class _StarEyesPainter extends CustomPainter {
   Path _roundedStar(Offset c, double outer) {
     final inner = outer * 0.5;
     final corner = outer * 0.15;
-    const n = 10;
+    final int n = 10;
 
     final pts = List.generate(n, (i) {
       final rad = i.isEven ? outer : inner;
